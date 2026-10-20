@@ -1,0 +1,18 @@
+Aquí van los 14 modelos 3D en formato .glb, con estos nombres exactos:
+
+banano.glb
+papa.glb
+mazorca.glb
+coco.glb
+huevo.glb
+madera.glb
+piedra.glb
+celular.glb
+computador.glb
+ladrillo.glb
+bicicleta.glb
+lapiz.glb
+panel-solar.glb
+motocicleta.glb
+
+Mientras falte un modelo, la app muestra el dibujo del elemento.

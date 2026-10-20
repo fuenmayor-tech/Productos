@@ -1,0 +1,1832 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Exploradores tecnológicos</title>
+<meta name="description" content="Tecnología e Informática, sesión 2: productos naturales, productos tecnológicos y objetos de mi entorno en realidad aumentada.">
+<meta name="theme-color" content="#17375E">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preload" href="fonts/nunito-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/baloo-2-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+<!--
+  EXPLORADORES TECNOLÓGICOS · Sesión 2 (Tecnología e Informática)
+  Continúa el taller "Exploradores tecnológicos" (sesión 1).
+
+  Decisiones de implementación:
+  - Solo realidad aumentada (sin RV), con Google model-viewer guardado en lib/ para no depender de internet.
+  - Modos de RA: WebXR (Chrome en Android con ARCore), Scene Viewer (Android) y Quick Look (iPhone/iPad).
+  - Los modelos 3D van en la carpeta modelos/ con los nombres que aparecen en DATOS (por ejemplo modelos/banano.glb).
+    Si un modelo no está, la app muestra el dibujo del elemento y lo explica: no inventa un modelo.
+  - sw.js guarda la app en el dispositivo para que funcione sin internet después de abrirla una vez.
+  - Paleta tomada de la guía de la sesión 1:
+      tinta #17375E · cielo #EAF5FB · sol #FFC93C · hoja #237A3B · circuito #1A6FB0 · taller #B4500E · uva #6A4CB8
+-->
+<style>
+@font-face{font-family:"Nunito";src:url(fonts/nunito-latin-wght-normal.woff2) format("woff2");font-weight:200 1000;font-style:normal;font-display:swap}
+@font-face{font-family:"Baloo 2";src:url(fonts/baloo-2-latin-700-normal.woff2) format("woff2");font-weight:700;font-display:swap}
+@font-face{font-family:"Baloo 2";src:url(fonts/baloo-2-latin-800-normal.woff2) format("woff2");font-weight:800;font-display:swap}
+
+:root{
+  --tinta:#17375E; --tinta-2:#46607F; --cielo:#EAF5FB; --papel:#FFFFFF; --linea:#C9DCEA; --cuadricula:rgba(23,55,94,.07);
+  --sol:#FFC93C; --sol-claro:#FFF3CC;
+  --hoja:#237A3B; --hoja-claro:#E2F3E5;
+  --circuito:#1A6FB0; --circuito-claro:#E1EFFA;
+  --taller:#B4500E; --taller-claro:#FDEBDC;
+  --uva:#6A4CB8; --uva-claro:#EEE9FB;
+  --mal:#B3261E; --mal-claro:#FCE8E6;
+  --f-titulo:"Baloo 2","Trebuchet MS",system-ui,sans-serif;
+  --f-texto:"Nunito",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --c:var(--tinta); --c-claro:var(--sol-claro);
+  color-scheme:light;
+}
+[data-cat="naturales"]{--c:var(--hoja);--c-claro:var(--hoja-claro)}
+[data-cat="tecnologicos"]{--c:var(--circuito);--c-claro:var(--circuito-claro)}
+[data-cat="entorno"]{--c:var(--taller);--c-claro:var(--taller-claro)}
+[data-cat="quiz"]{--c:var(--uva);--c-claro:var(--uva-claro)}
+
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-padding-top:84px}
+body{margin:0;font-family:var(--f-texto);font-size:1.0625rem;line-height:1.55;color:var(--tinta);background:var(--cielo);overflow-x:hidden}
+h1,h2,h3{font-family:var(--f-titulo);font-weight:700;line-height:1.12;margin:0 0 .35em}
+h2{font-size:clamp(1.6rem,5vw,2.25rem)}
+h3{font-size:1.3rem}
+p{margin:0 0 .8em}
+button{font:inherit;color:inherit}
+a{color:inherit}
+svg{display:block}
+[hidden]{display:none !important}
+:focus-visible{outline:3px solid var(--tinta);outline-offset:2px;box-shadow:0 0 0 6px var(--sol);border-radius:8px}
+h1[tabindex="-1"]:focus,h2[tabindex="-1"]:focus,p[tabindex="-1"]:focus,div[tabindex="-1"]:focus{outline:none;box-shadow:none}
+.solo-lector{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+/* ---------- Cabecera y menú ---------- */
+.barra{position:sticky;top:0;z-index:20;background:var(--papel);border-bottom:2px solid var(--linea)}
+.barra-in{max-width:1120px;margin:0 auto;padding:8px 16px;display:flex;align-items:center;gap:12px;min-height:64px}
+.marca{display:flex;align-items:center;gap:10px;text-decoration:none;min-width:0}
+.marca svg{width:42px;height:42px;flex:none}
+.marca-t{font-family:var(--f-titulo);font-weight:800;font-size:1.2rem;line-height:1}
+.marca-s{display:block;font-size:.78rem;color:var(--tinta-2);line-height:1.2;margin-top:3px}
+.barra-acc{margin-left:auto;display:flex;gap:8px;align-items:center}
+.pill-red{display:none;align-items:center;gap:6px;font-size:.8rem;font-weight:800;background:var(--sol-claro);border:2px solid var(--sol);border-radius:999px;padding:4px 10px;white-space:nowrap}
+.pill-red svg{width:18px;height:18px}
+body.sin-red .pill-red{display:inline-flex}
+.btn-redondo{width:44px;height:44px;border-radius:50%;border:2px solid var(--linea);background:var(--papel);display:grid;place-items:center;cursor:pointer;flex:none}
+.btn-redondo svg{width:24px;height:24px}
+.btn-redondo:hover{border-color:var(--tinta)}
+
+.menu{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--papel);border-top:2px solid var(--linea);display:grid;grid-template-columns:repeat(5,1fr);padding-bottom:env(safe-area-inset-bottom)}
+.menu a{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:60px;padding:6px 2px;font-size:.74rem;font-weight:800;color:var(--tinta-2);text-decoration:none;text-align:center;line-height:1.1}
+.menu a svg{width:24px;height:24px}
+.menu a[aria-current="page"]{color:var(--c)}
+.menu a[aria-current="page"]::before{content:"";position:absolute;top:-2px;left:50%;width:40px;height:5px;margin-left:-20px;border-radius:0 0 6px 6px;background:var(--c)}
+
+/* ---------- Estructura ---------- */
+main{max-width:1120px;margin:0 auto;padding:20px 16px 110px}
+.vista > * + *{margin-top:28px}
+.texto-suave{color:var(--tinta-2)}
+
+/* ---------- Botones ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:10px 18px;border-radius:999px;border:2px solid var(--tinta);background:var(--papel);color:var(--tinta);font-weight:800;line-height:1.2;text-decoration:none;cursor:pointer;box-shadow:0 3px 0 var(--tinta);transition:transform .08s ease,box-shadow .08s ease;text-align:center}
+.btn svg{width:22px;height:22px;flex:none}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--tinta)}
+.btn-color{background:var(--c);color:#fff}
+.btn-sol{background:var(--sol)}
+.btn[aria-disabled="true"],.btn:disabled{opacity:.5;box-shadow:none;cursor:not-allowed;transform:none}
+.btn-suave{border-color:var(--linea);box-shadow:none;min-height:42px;padding:7px 14px;font-size:.92rem}
+.btn-suave:hover{border-color:var(--tinta)}
+.btn-suave[aria-pressed="true"]{background:var(--c-claro);border-color:var(--c)}
+.fila-btn{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+
+/* ---------- Inicio ---------- */
+.hero{display:grid;gap:12px;align-items:center}
+.hero h1{font-weight:800;font-size:clamp(2.6rem,10vw,4.6rem);line-height:.95;letter-spacing:-.01em;margin:0 0 14px}
+.hero-sesion{display:inline-block;font-weight:800;background:var(--sol);border:2px solid var(--tinta);border-radius:10px;padding:2px 12px;margin-bottom:12px;transform:rotate(-2deg)}
+.hero-lead{font-size:1.15rem;max-width:34ch}
+.hero-dibujo > svg{width:100%;max-width:440px;margin:0 auto;height:auto}
+.hero-dibujo .lupa{transform-box:view-box;transform-origin:150px 130px;animation:asomar 1.1s cubic-bezier(.2,.8,.2,1) .15s both}
+@keyframes asomar{from{transform:translate(-26px,14px) rotate(-10deg);opacity:0}to{transform:none;opacity:1}}
+.defs{display:grid;gap:14px}
+.def{background:var(--papel);border:2px solid var(--tinta);border-radius:18px;padding:16px 18px;box-shadow:0 4px 0 var(--tinta);display:grid;grid-template-columns:auto 1fr;gap:8px 12px;align-items:center}
+.def svg{width:56px;height:56px}
+.def h3{color:var(--c);margin:0}
+.def p{margin:0;grid-column:1 / -1}
+.pasos{list-style:none;padding:0;margin:0;display:grid;gap:12px;counter-reset:paso}
+.pasos li{counter-increment:paso;display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start}
+.pasos li::before{content:counter(paso);width:38px;height:38px;border-radius:50%;background:var(--sol);border:2px solid var(--tinta);display:grid;place-items:center;font-family:var(--f-titulo);font-weight:800;font-size:1.2rem}
+.pasos b{display:block}
+.ruta{list-style:none;padding:0;margin:0;display:grid;gap:12px}
+.ruta a{display:grid;grid-template-columns:auto 1fr auto;gap:4px 14px;align-items:center;text-decoration:none;background:var(--papel);border:2px solid var(--tinta);border-radius:18px;padding:14px 16px;box-shadow:0 4px 0 var(--tinta)}
+.ruta a:active{transform:translateY(2px);box-shadow:0 2px 0 var(--tinta)}
+.ruta-num{grid-row:span 2;width:46px;height:46px;border-radius:14px;background:var(--c);color:#fff;display:grid;place-items:center;font-family:var(--f-titulo);font-weight:800;font-size:1.5rem;border:2px solid var(--tinta)}
+.ruta-t{font-family:var(--f-titulo);font-weight:700;font-size:1.2rem;line-height:1.15}
+.ruta-d{font-size:.93rem;color:var(--tinta-2)}
+.ruta-p{grid-column:3;grid-row:1 / span 2;font-size:.82rem;font-weight:800;color:var(--c);text-align:right;max-width:9em}
+.caja{background:var(--papel);border:2px solid var(--tinta);border-radius:18px;padding:18px;box-shadow:0 4px 0 var(--tinta)}
+.caja h2{font-size:1.45rem}
+.carga{height:10px;border-radius:999px;background:var(--linea);overflow:hidden;margin:10px 0}
+.carga > span{display:block;height:100%;width:0;background:var(--c);border-radius:999px;transition:width .2s}
+
+/* ---------- Explorar ---------- */
+.ex-cab{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:6px 16px}
+.ex-cab h2{color:var(--c);margin:0}
+.ex-cab .ex-progreso{font-weight:800;font-size:.95rem}
+.ex-def{display:flex;gap:12px;align-items:flex-start;background:var(--c-claro);border-radius:14px;padding:12px 14px;margin-top:10px}
+.ex-def svg{width:40px;height:40px;flex:none}
+.ex-def p{margin:0}
+.chips{list-style:none;padding:0;margin:16px 0 0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;max-width:520px;scroll-margin-top:84px}
+.chip{position:relative;width:100%;height:50px;border-radius:14px;border:2px solid var(--linea);background:var(--papel);font-family:var(--f-titulo);font-weight:800;font-size:1.35rem;cursor:pointer;display:grid;place-items:center;padding:0}
+.chip:hover{border-color:var(--c)}
+.chip[aria-current="true"]{background:var(--c);color:#fff;border-color:var(--tinta);box-shadow:0 3px 0 var(--tinta)}
+.chip-avance{position:absolute;left:6px;right:6px;bottom:4px;height:4px;border-radius:4px;background:var(--linea);overflow:hidden}
+.chip-avance > span{display:block;height:100%;background:var(--c)}
+.chip[aria-current="true"] .chip-avance{background:rgba(255,255,255,.35)}
+.chip[aria-current="true"] .chip-avance > span{background:#fff}
+.chip-ok{position:absolute;top:-7px;right:-7px;width:20px;height:20px;border-radius:50%;background:var(--sol);border:2px solid var(--tinta);display:none;place-items:center}
+.chip-ok svg{width:12px;height:12px}
+.chip.completo .chip-ok{display:grid}
+
+.ex-cuerpo{display:grid;gap:18px;margin-top:16px}
+.escenario{position:relative;height:clamp(300px,88vw,470px);border:2px solid var(--tinta);border-radius:22px;overflow:hidden;background-color:#F9FCFF;background-image:linear-gradient(var(--cuadricula) 1px,transparent 1px),linear-gradient(90deg,var(--cuadricula) 1px,transparent 1px);background-size:22px 22px;box-shadow:0 4px 0 var(--tinta)}
+.escenario:fullscreen{border-radius:0;border:0;height:100%}
+.escenario:-webkit-full-screen{border-radius:0;border:0;width:100%;height:100%}
+.escenario model-viewer{width:100%;height:100%;background:transparent;--poster-color:transparent;--progress-bar-color:transparent}
+.escenario-ilus{position:absolute;inset:0;z-index:2;display:grid;place-items:center;background:inherit;padding:56px 24px 84px}
+.escenario-ilus svg{width:clamp(170px,56vw,290px);height:auto}
+.escenario[data-estado="listo"] .escenario-ilus{display:none}
+.etiqueta{position:absolute;top:12px;left:12px;z-index:3;background:var(--sol);border:2px solid var(--tinta);border-radius:10px;padding:2px 12px;font-weight:800;font-size:.95rem;transform:rotate(-2deg);max-width:calc(100% - 24px)}
+.escenario-estado{position:absolute;left:12px;right:12px;bottom:12px;z-index:3;background:rgba(255,255,255,.95);border:2px solid var(--linea);border-radius:14px;padding:8px 12px;font-size:.92rem;font-weight:700}
+.escenario-estado .carga{margin:6px 0 2px;height:8px}
+.escenario[data-estado="listo"] .escenario-estado{display:none}
+.escenario:not([data-estado="cargando"]) .escenario-estado .carga{display:none}
+.ar-zona{margin-top:14px}
+.btn-ar{width:100%;min-height:58px;font-size:1.12rem}
+.btn-ar svg{width:28px;height:28px}
+.ar-nota{font-size:.92rem;color:var(--tinta-2);margin:8px 4px 0}
+.herramientas{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.herramientas .btn[aria-disabled="true"]{opacity:.45}
+.pista-uso{font-size:.85rem;color:var(--tinta-2);margin:8px 4px 0}
+.credito{font-size:.8rem;color:var(--tinta-2);margin:8px 4px 0}
+
+.pistas{background:var(--papel);border:2px solid var(--tinta);border-radius:22px;padding:18px;box-shadow:0 4px 0 var(--tinta)}
+.pistas h3{font-size:1.45rem;margin-bottom:4px}
+.lista-pistas{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:8px}
+.pista{width:100%;display:flex;align-items:center;gap:12px;text-align:left;background:var(--c-claro);border:2px solid transparent;border-radius:14px;padding:9px 12px;min-height:54px;cursor:pointer;font-weight:800;line-height:1.25}
+.pista:hover{border-color:var(--c)}
+.letra{flex:none;width:34px;height:34px;border-radius:50%;background:var(--papel);border:2px solid var(--c);color:var(--c);display:grid;place-items:center;font-family:var(--f-titulo);font-weight:800;font-size:1.05rem;line-height:1}
+.pista[aria-expanded="true"] .letra{background:var(--c);color:#fff}
+.pista-ver{margin-left:auto;flex:none;display:flex;align-items:center;gap:4px;font-size:.82rem;color:var(--c)}
+.pista-ver svg{width:18px;height:18px}
+.respuesta{margin:6px 0 4px;padding:10px 14px;border:2px dashed var(--c);border-radius:14px;background:var(--papel);animation:aparecer .22s ease-out}
+.respuesta p:last-child,.respuesta ul:last-child{margin-bottom:0}
+.respuesta ul{margin:4px 0 .6em;padding-left:1.25em}
+.respuesta li{margin:3px 0}
+@keyframes aparecer{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.pistas-pie{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-top:14px}
+.pistas-cuenta{font-size:.9rem;font-weight:800;color:var(--tinta-2)}
+.item-nav{display:flex;gap:10px;margin-top:18px}
+.item-nav .btn{flex:1;padding-left:10px;padding-right:10px}
+.cadena{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:2px 0 8px}
+.cadena span{background:var(--c-claro);border-radius:999px;padding:2px 10px;font-weight:800;font-size:.9rem}
+.cadena svg{width:16px;height:16px;color:var(--c)}
+
+/* ---------- Mi entorno ---------- */
+.pestanas{display:flex;gap:4px;background:var(--papel);border:2px solid var(--tinta);border-radius:999px;padding:4px;max-width:560px}
+.pestanas [role="tab"]{flex:1;border:0;border-radius:999px;background:transparent;padding:8px 10px;min-height:44px;font-weight:800;cursor:pointer;white-space:nowrap}
+.pestanas [role="tab"][aria-selected="true"]{background:var(--c);color:#fff}
+.panel-intro{max-width:70ch;margin:16px 0}
+.tarjetas{display:grid;gap:16px;align-items:start}
+.tarjeta{background:var(--papel);border:2px solid var(--tinta);border-radius:18px;padding:14px;box-shadow:0 4px 0 var(--tinta)}
+.tarjeta-cab{display:flex;align-items:center;gap:12px}
+.tarjeta-cab svg{width:84px;height:84px;flex:none}
+.tarjeta-cab h3{margin:0}
+.tarjeta-cab p{margin:2px 0 0;font-size:.92rem;color:var(--tinta-2)}
+.tarjeta .lista-pistas{margin-top:10px}
+.tarjeta .pista{min-height:48px;font-size:.95rem}
+.tarjeta .ver-txt{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.reto-cuenta{font-weight:800;margin:0}
+.reto{background:var(--papel);border:2px solid var(--tinta);border-radius:18px;padding:16px;box-shadow:0 4px 0 var(--tinta)}
+.reto h3{font-size:1.15rem;font-family:var(--f-texto);font-weight:800;line-height:1.35}
+.opciones{display:flex;flex-wrap:wrap;gap:8px}
+.opcion{display:inline-flex;align-items:center;gap:6px;min-height:48px;border-radius:12px;border:2px solid var(--linea);background:var(--papel);padding:8px 14px;font-weight:800;cursor:pointer}
+.opcion:hover:not(:disabled){border-color:var(--tinta)}
+.opcion:disabled{cursor:default}
+.opcion svg{width:20px;height:20px}
+.opcion.correcta{background:var(--hoja-claro);border-color:var(--hoja);color:var(--hoja);opacity:1}
+.opcion.incorrecta{background:var(--mal-claro);border-color:var(--mal);color:var(--mal);opacity:1}
+.retro{margin-top:12px;border-radius:14px;padding:10px 14px;font-weight:600}
+.retro b{display:block;font-family:var(--f-titulo);font-size:1.15rem}
+.retro.bien{background:var(--hoja-claro)}
+.retro.mal{background:var(--mal-claro)}
+
+/* ---------- Quiz ---------- */
+.quiz-caja{max-width:760px;margin:0 auto;background:var(--papel);border:2px solid var(--tinta);border-radius:22px;box-shadow:0 4px 0 var(--tinta);padding:20px}
+.campo{display:block;margin:0 0 14px}
+.campo span{display:block;font-weight:800;margin-bottom:4px}
+.campo input{width:100%;min-height:50px;border:2px solid var(--linea);border-radius:12px;padding:10px 12px;font:inherit;color:var(--tinta);background:var(--papel)}
+.campo input:focus{border-color:var(--c)}
+.campo-error{color:var(--mal);font-weight:800;font-size:.92rem;margin:-6px 0 12px}
+.q-cab{display:flex;justify-content:space-between;align-items:center;gap:10px;font-weight:800;font-size:.95rem}
+.q-texto{font-family:var(--f-texto);font-weight:800;font-size:1.3rem;line-height:1.35;margin:14px 0}
+.q-dibujo svg{width:110px;height:110px;margin:0 auto 10px}
+.q-opciones{display:grid;gap:10px}
+.q-opcion{display:flex;align-items:center;gap:12px;text-align:left;width:100%;min-height:58px;border:2px solid var(--linea);border-radius:14px;background:var(--papel);padding:10px 14px;font-weight:700;cursor:pointer;line-height:1.3}
+.q-opcion:hover:not(:disabled){border-color:var(--c)}
+.q-opcion:disabled{cursor:default}
+.q-opcion .marca-r{margin-left:auto;flex:none;width:24px;height:24px}
+.q-opcion.correcta{background:var(--hoja-claro);border-color:var(--hoja)}
+.q-opcion.correcta .letra{background:var(--hoja);border-color:var(--hoja);color:#fff}
+.q-opcion.incorrecta{background:var(--mal-claro);border-color:var(--mal)}
+.q-opcion.incorrecta .letra{background:var(--mal);border-color:var(--mal);color:#fff}
+.puntaje{font-family:var(--f-titulo);font-weight:800;font-size:clamp(3.2rem,14vw,5.2rem);line-height:1;color:var(--c);margin:6px 0}
+.autoeval{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0 4px}
+.autoeval button{display:flex;flex-direction:column;align-items:center;gap:6px;border:2px solid var(--linea);border-radius:14px;background:var(--papel);padding:10px 4px;font-weight:800;font-size:.88rem;cursor:pointer;line-height:1.2;min-height:96px}
+.autoeval button svg{width:40px;height:40px}
+.autoeval button[aria-pressed="true"]{border-color:var(--tinta);background:var(--sol-claro);box-shadow:0 3px 0 var(--tinta)}
+.revision{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:10px}
+.revision li{border:2px solid var(--linea);border-radius:14px;padding:10px 12px;display:grid;grid-template-columns:auto 1fr;gap:4px 10px}
+.revision li svg{width:24px;height:24px}
+.revision li > .ico{grid-row:span 3}
+.revision .ok svg{color:var(--hoja)}
+.revision .no svg{color:var(--mal)}
+.revision small{color:var(--tinta-2);font-size:.88rem}
+
+/* ---------- Ayuda y avisos ---------- */
+dialog{max-width:680px;width:calc(100% - 24px);max-height:88vh;border:2px solid var(--tinta);border-radius:22px;padding:0;color:var(--tinta);box-shadow:0 6px 0 var(--tinta);background:var(--papel)}
+dialog::backdrop{background:rgba(23,55,94,.5)}
+dialog.sin-soporte[open]{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:60;overflow:auto}
+.dlg-cab{position:sticky;top:0;background:var(--papel);display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:2px solid var(--linea);z-index:1}
+.dlg-cab h2{margin:0;font-size:1.6rem}
+.dlg-cuerpo{padding:16px 18px 22px}
+.dlg-cuerpo h3{margin-top:18px}
+.dlg-cuerpo ol,.dlg-cuerpo ul{padding-left:1.3em}
+.estado-modelos{list-style:none;padding:0;margin:10px 0;display:grid;gap:6px;font-size:.92rem}
+.estado-modelos li{display:flex;gap:8px;align-items:center}
+.estado-modelos svg{width:20px;height:20px;flex:none}
+.estado-modelos code{font-size:.85rem;background:var(--cielo);padding:1px 6px;border-radius:6px}
+.estado-modelos .ok svg{color:var(--hoja)}
+.estado-modelos .no svg{color:var(--mal)}
+.aviso{position:fixed;left:50%;bottom:84px;transform:translate(-50%,20px);opacity:0;pointer-events:none;background:var(--tinta);color:#fff;padding:12px 18px;border-radius:14px;max-width:min(92vw,480px);z-index:70;font-weight:700;transition:opacity .2s,transform .2s}
+.aviso.ver{opacity:1;transform:translate(-50%,0)}
+
+#hoja-impresion{display:none}
+
+/* ---------- Pantallas medianas y grandes ---------- */
+@media (min-width:640px){
+  .defs{grid-template-columns:repeat(3,1fr)}
+  .tarjetas{grid-template-columns:repeat(2,1fr)}
+}
+@media (min-width:920px){
+  main{padding-bottom:56px}
+  .barra-in{min-height:72px}
+  .menu{position:static;display:flex;gap:4px;border:0;background:none;padding:0;margin-left:16px}
+  .menu a{flex-direction:row;gap:6px;min-height:44px;padding:6px 12px;border-radius:999px;font-size:.92rem}
+  .menu a svg{width:20px;height:20px}
+  .menu a[aria-current="page"]{background:var(--c);color:#fff}
+  .menu a[aria-current="page"]::before{display:none}
+  .menu a:hover:not([aria-current="page"]){background:var(--cielo)}
+  .aviso{bottom:28px}
+  .hero{grid-template-columns:1.05fr .95fr;gap:24px}
+  .ex-cuerpo{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);align-items:start}
+  .col-visor{position:sticky;top:90px}
+  .escenario{height:440px}
+  .tarjetas{grid-template-columns:repeat(3,1fr)}
+}
+@media (min-width:920px) and (max-width:1060px){ .marca-s{display:none} }
+@media (max-width:479px){ .pista-ver .ver-txt{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)} .pista-ver svg{width:22px;height:22px} }
+@media (max-width:380px){ .marca-s{display:none} .chip{height:44px;font-size:1.15rem} }
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;scroll-behavior:auto !important}
+}
+
+/* ---------- Impresión de resultados ---------- */
+@media print{
+  @page{margin:14mm}
+  body{background:#fff;font-size:11pt}
+  .barra,.menu,.aviso,dialog{display:none !important}
+  body.imprimiendo main{display:none !important}
+  body.imprimiendo #hoja-impresion{display:block}
+  #hoja-impresion h1{font-size:18pt;margin:0 0 4pt}
+  #hoja-impresion .sub{margin:0 0 10pt;color:#333}
+  #hoja-impresion .datos{display:grid;grid-template-columns:1fr 1fr;gap:4pt 18pt;border:1.5pt solid #17375E;border-radius:8pt;padding:8pt 10pt;margin-bottom:10pt}
+  #hoja-impresion table{width:100%;border-collapse:collapse;font-size:10pt}
+  #hoja-impresion th,#hoja-impresion td{border:1pt solid #9fb3c8;padding:4pt 5pt;text-align:left;vertical-align:top}
+  #hoja-impresion th{background:#EAF5FB}
+  #hoja-impresion tr{break-inside:avoid}
+  #hoja-impresion .firma{margin-top:22pt;display:grid;grid-template-columns:1fr 1fr;gap:30pt}
+  #hoja-impresion .firma div{border-top:1pt solid #333;padding-top:3pt;font-size:9.5pt}
+}
+</style>
+<script>
+  // model-viewer busca el decodificador Draco en internet por defecto; aquí se usa la copia local.
+  self.ModelViewerElement = self.ModelViewerElement || {};
+  self.ModelViewerElement.dracoDecoderLocation = new URL('lib/draco/', location.href).href;
+</script>
+<script type="module" src="lib/model-viewer.min.js"></script>
+</head>
+<body>
+
+<header class="barra">
+  <div class="barra-in">
+    <a class="marca" href="#inicio" aria-label="Exploradores tecnológicos, ir al inicio">
+      <span id="marca-icono"></span>
+      <span><span class="marca-t">Exploradores tecnológicos</span><span class="marca-s">Tecnología e Informática, sesión 2</span></span>
+    </a>
+    <nav class="menu" aria-label="Secciones">
+      <a href="#inicio" data-cat="inicio" data-vista="inicio"><span data-icono="lupa"></span>Inicio</a>
+      <a href="#naturales" data-cat="naturales" data-vista="naturales"><span data-icono="hoja"></span>Naturales</a>
+      <a href="#tecnologicos" data-cat="tecnologicos" data-vista="tecnologicos"><span data-icono="chip"></span>Tecnológicos</a>
+      <a href="#entorno" data-cat="entorno" data-vista="entorno"><span data-icono="casa"></span>Mi entorno</a>
+      <a href="#quiz" data-cat="quiz" data-vista="quiz"><span data-icono="estrella"></span>Quiz</a>
+    </nav>
+    <div class="barra-acc">
+      <span class="pill-red" role="status"><span data-icono="sinred"></span>Sin internet</span>
+      <button class="btn-redondo" type="button" data-abrir-ayuda aria-label="Ayuda e instrucciones"><span data-icono="ayuda"></span></button>
+    </div>
+  </div>
+</header>
+
+<main id="principal">
+  <!-- INICIO -->
+  <section class="vista" id="v-inicio" data-cat="inicio" aria-labelledby="t-inicio">
+    <div class="hero">
+      <div>
+        <span class="hero-sesion">Sesión 2</span>
+        <h1 id="t-inicio">Exploradores tecnológicos</h1>
+        <p class="hero-lead">Hoy vas a observar de cerca productos naturales y productos tecnológicos, y a ponerlos sobre tu mesa con la cámara del celular.</p>
+        <div class="fila-btn">
+          <a class="btn btn-sol" href="#naturales"><span data-icono="lupa"></span>Empezar a explorar</a>
+          <button class="btn btn-suave" type="button" data-abrir-ayuda>Cómo ver en realidad aumentada</button>
+        </div>
+      </div>
+      <div class="hero-dibujo" id="hero-dibujo" aria-hidden="true"></div>
+    </div>
+
+    <section aria-labelledby="t-recuerda">
+      <h2 id="t-recuerda">Recuerda lo que aprendimos</h2>
+      <div class="defs" id="defs"></div>
+    </section>
+
+    <section aria-labelledby="t-trabajo">
+      <h2 id="t-trabajo">Así vas a trabajar</h2>
+      <ol class="pasos">
+        <li><span><b>Observa.</b> Gira el elemento con el dedo o míralo en tu espacio con realidad aumentada.</span></li>
+        <li><span><b>Responde en tu cuaderno.</b> Qué es, características, forma, estructura, función, origen y fuente de energía.</span></li>
+        <li><span><b>Comprueba.</b> Toca cada pregunta para ver la respuesta correcta.</span></li>
+      </ol>
+    </section>
+
+    <section aria-labelledby="t-ruta">
+      <h2 id="t-ruta">Tu ruta</h2>
+      <ol class="ruta" id="ruta"></ol>
+    </section>
+
+    <section class="caja" aria-labelledby="t-offline" id="caja-offline">
+      <h2 id="t-offline">Úsala sin internet</h2>
+      <p id="offline-texto">Abre la app una vez con internet y toca el botón. Se guardarán la app y los modelos 3D en este dispositivo para que funcione aunque no haya señal.</p>
+      <div class="carga" id="offline-carga" hidden><span></span></div>
+      <p id="offline-estado" class="texto-suave" role="status"></p>
+      <button class="btn btn-color" type="button" id="btn-offline" style="--c:var(--tinta)"><span data-icono="descargar"></span>Guardar para usar sin internet</button>
+    </section>
+  </section>
+
+  <!-- PRODUCTOS NATURALES -->
+  <section class="vista" id="v-naturales" data-cat="naturales" aria-labelledby="t-naturales" hidden></section>
+
+  <!-- PRODUCTOS TECNOLÓGICOS -->
+  <section class="vista" id="v-tecnologicos" data-cat="tecnologicos" aria-labelledby="t-tecnologicos" hidden></section>
+
+  <!-- MI ENTORNO -->
+  <section class="vista" id="v-entorno" data-cat="entorno" aria-labelledby="t-entorno" hidden></section>
+
+  <!-- QUIZ -->
+  <section class="vista" id="v-quiz" data-cat="quiz" aria-labelledby="t-quiz" hidden>
+    <div class="quiz-caja" id="quiz-caja"></div>
+  </section>
+</main>
+
+<div id="hoja-impresion" aria-hidden="true"></div>
+
+<dialog id="ayuda" aria-labelledby="t-ayuda">
+  <div class="dlg-cab">
+    <h2 id="t-ayuda">Ayuda</h2>
+    <button class="btn-redondo" type="button" id="cerrar-ayuda" aria-label="Cerrar la ayuda"><span data-icono="x"></span></button>
+  </div>
+  <div class="dlg-cuerpo">
+    <h3>Cómo ver un elemento en realidad aumentada</h3>
+    <ol>
+      <li>Elige un elemento y espera a que cargue su modelo 3D.</li>
+      <li>Toca <b>Ver en realidad aumentada</b> y permite el uso de la cámara.</li>
+      <li>Apunta al piso o a una mesa y mueve el celular despacio, de lado a lado, hasta que aparezca el elemento.</li>
+      <li>Arrástralo con un dedo para moverlo, pellizca para cambiar su tamaño y gíralo con dos dedos.</li>
+    </ol>
+    <h3>Qué se necesita</h3>
+    <ul>
+      <li><b>Android:</b> Chrome y la app “Servicios de Google Play para RA” (ARCore). No todos los celulares Android la admiten.</li>
+      <li><b>iPhone o iPad:</b> Safari.</li>
+      <li>Abrir la app desde una dirección que empiece por <b>https://</b>, como la de GitHub Pages.</li>
+      <li>Si tu equipo no tiene realidad aumentada, igual puedes girar y acercar los modelos en 3D.</li>
+    </ul>
+    <h3>Para el docente: modelos 3D</h3>
+    <p>Cada elemento busca su archivo en la carpeta <code>modelos/</code>. Revisa cuáles ya están publicados:</p>
+    <button class="btn btn-suave" type="button" id="btn-revisar"><span data-icono="reiniciar"></span>Revisar modelos</button>
+    <ul class="estado-modelos" id="estado-modelos"></ul>
+    <h3>Créditos</h3>
+    <div id="creditos"></div>
+    <p class="texto-suave">Visor 3D y realidad aumentada: model-viewer de Google (licencia Apache 2.0). Dibujos: hechos para esta app.</p>
+    <h3>Mi progreso</h3>
+    <p>Tu avance se guarda solo en este dispositivo.</p>
+    <button class="btn btn-suave" type="button" id="btn-reiniciar"><span data-icono="reiniciar"></span>Borrar mi progreso</button>
+  </div>
+</dialog>
+
+<div class="aviso" id="aviso" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+'use strict';
+
+/* =========================================================
+   1. CONTENIDO
+   Todo el texto de la app está aquí. Para cambiar un modelo,
+   cambia "modelo" (ruta del archivo .glb) y "credito".
+   "tam" = tamaño real aproximado en metros (lado más largo),
+   se usa para que en la RA el elemento aparezca de su tamaño real.
+   ========================================================= */
+
+var PREGUNTAS = {
+  naturales: [
+    { k: 'que', t: '¿Qué es y cómo se llama?' },
+    { k: 'caracteristicas', t: '¿Qué características tiene?' },
+    { k: 'forma', t: '¿Qué forma tiene?' },
+    { k: 'estructura', t: '¿Cómo es su estructura? ¿Qué partes tiene?' },
+    { k: 'funcion', t: '¿Para qué sirve? (función)' },
+    { k: 'origen', t: '¿De dónde se obtiene?' },
+    { k: 'energia', t: '¿Qué fuente de energía utiliza?' }
+  ],
+  tecnologicos: [
+    { k: 'que', t: '¿Qué es y cómo se llama?' },
+    { k: 'caracteristicas', t: '¿Qué características tiene?' },
+    { k: 'forma', t: '¿Qué forma tiene?' },
+    { k: 'estructura', t: '¿Cómo es su estructura? ¿Qué partes tiene?' },
+    { k: 'funcion', t: '¿Para qué sirve? (función)' },
+    { k: 'origen', t: '¿De qué materiales está hecho?' },
+    { k: 'energia', t: '¿Qué fuente de energía utiliza?' }
+  ]
+};
+
+var DATOS = {
+  naturales: {
+    titulo: 'Productos naturales',
+    icono: 'hoja',
+    definicion: 'Un producto natural es un elemento que obtenemos directamente de la naturaleza, como plantas, animales, agua o minerales.',
+    siguiente: { vista: 'tecnologicos', texto: 'Seguir con productos tecnológicos' },
+    items: [
+      {
+        id: 'banano', nombre: 'Banano', modelo: 'modelos/banano.glb', tam: 0.2, medida: 'entre 15 y 25 cm de largo', credito: '',
+        que: 'Es el banano, una fruta. Es un producto natural porque lo obtenemos directamente de la planta de banano: solo hay que cosecharlo.',
+        caracteristicas: ['Cuando está verde es duro; al madurar, la cáscara se pone amarilla y la pulpa se vuelve blanda y dulce.', 'Tiene un olor suave y agradable.', 'Crece en racimos: muchos bananos juntos en la misma planta.', 'Se pela fácilmente con las manos.'],
+        forma: 'Alargada y curva, parecida a una media luna. Sus extremos son más delgados que el centro.',
+        estructura: { p: 'Sus partes son:', li: ['Cáscara: la cubierta que protege la fruta.', 'Pulpa: la parte blanda que comemos.', 'Puntitos negros en el centro: restos de semillas que no se desarrollan.', 'Extremo o cuello: lo une al racimo.'] },
+        funcion: 'Sirve como alimento. Nos da energía, fibra y minerales como el potasio. Se come crudo, en jugos, batidos y postres.',
+        origen: 'Viene de la planta de banano, que crece en clima cálido. Aunque parece un árbol, no lo es: su “tallo” está formado por hojas enrolladas. En Colombia se cultiva en regiones como Urabá y Magdalena.',
+        energia: 'La planta usa la energía de la luz del sol para fabricar sus azúcares (fotosíntesis). Cuando comemos banano, nuestro cuerpo usa esa energía guardada para movernos y crecer.'
+      },
+      {
+        id: 'papa', nombre: 'Papa', modelo: 'modelos/papa.glb', tam: 0.1, medida: 'entre 5 y 12 cm', credito: '',
+        que: 'Es la papa, un tubérculo: un tallo que crece debajo de la tierra y guarda alimento. Es un producto natural porque se cosecha directamente de la planta.',
+        caracteristicas: ['Su piel es delgada y puede ser café, amarilla, roja o morada.', 'Por dentro es firme y de color blanco o amarillo.', 'Cruda es dura; al cocinarla se ablanda.', 'Tiene “ojos”: pequeñas yemas de donde salen brotes.'],
+        forma: 'Redondeada u ovalada, e irregular. Ninguna papa es exactamente igual a otra.',
+        estructura: { p: 'Sus partes son:', li: ['Piel o cáscara: la protege.', 'Pulpa: guarda almidón, que es alimento para la planta y para nosotros.', 'Ojos o yemas: de ellos nacen nuevas plantas.'] },
+        funcion: 'Sirve como alimento: da energía porque tiene mucho almidón. Se prepara cocida, frita, en puré o en sopas como el ajiaco. También se usa como semilla para sembrar nuevas plantas de papa.',
+        origen: 'Viene de la planta de papa, originaria de la cordillera de los Andes, en Sudamérica. En Colombia se cultiva en clima frío, por ejemplo en Boyacá, Cundinamarca y Nariño.',
+        energia: 'La planta usa la luz del sol para hacer fotosíntesis y guarda esa energía en forma de almidón dentro de la papa. Al comerla, nuestro cuerpo aprovecha esa energía.'
+      },
+      {
+        id: 'mazorca', nombre: 'Mazorca de maíz', modelo: 'modelos/mazorca.glb', tam: 0.25, medida: 'entre 15 y 30 cm de largo', credito: '',
+        que: 'Es una mazorca de maíz: la parte de la planta de maíz donde crecen los granos. Es un producto natural.',
+        caracteristicas: ['Sus granos pueden ser amarillos, blancos y hasta morados.', 'Los granos tiernos son suaves y dulces; los secos son duros.', 'Está envuelta en hojas y tiene “pelos” en la punta.', 'Cada grano es una semilla.'],
+        forma: 'Cilíndrica y alargada, un poco más delgada en la punta.',
+        estructura: { p: 'Sus partes son:', li: ['Hojas: la envuelven y la protegen.', 'Pelos o barbas: cada pelo está unido a un grano.', 'Granos: semillas ordenadas en hileras.', 'Tusa: el centro duro donde están pegados los granos.'] },
+        funcion: 'Sirve como alimento para personas y animales. Con maíz se hacen arepas, bollos, mazamorra y aceite. Sus granos también sirven para sembrar.',
+        origen: 'Viene de la planta de maíz. Los pueblos originarios de México lo cultivaron por primera vez hace miles de años, y hoy se siembra en toda Colombia.',
+        energia: 'La planta capta la luz del sol (fotosíntesis) y guarda la energía como almidón en los granos. Esa energía pasa a quien se come el maíz.'
+      },
+      {
+        id: 'coco', nombre: 'Coco', modelo: 'modelos/coco.glb', tam: 0.22, medida: 'entre 20 y 30 cm con su capa de fibra', credito: '',
+        que: 'Es el coco, el fruto de la palma de coco o cocotero. Es un producto natural.',
+        caracteristicas: ['Por fuera es duro y fibroso.', 'Por dentro tiene una pulpa blanca y agua de coco.', 'Cuando está tierno es verde y tiene más agua; cuando está seco es café.', 'Flota en el agua.'],
+        forma: 'Ovalada o casi redonda. La concha de adentro tiene tres puntos oscuros llamados “ojos”.',
+        estructura: { p: 'De afuera hacia adentro:', li: ['Cáscara externa: lisa, verde o café.', 'Fibra o estopa: una capa gruesa de hilos.', 'Concha: una capa muy dura con tres “ojos”.', 'Pulpa: la carne blanca que comemos.', 'Agua de coco: el líquido del centro.'] },
+        funcion: 'Sirve como alimento y bebida: agua de coco, arroz con coco y cocadas. Con su fibra se hacen cuerdas y tapetes, y con la concha, artesanías.',
+        origen: 'Viene de la palma de coco, que crece en costas cálidas, como las del Caribe y el Pacífico colombiano.',
+        energia: 'La palma necesita mucho sol para hacer fotosíntesis. La pulpa guarda energía en grasas y azúcares que nuestro cuerpo usa al comerla.'
+      },
+      {
+        id: 'huevo', nombre: 'Huevo de gallina', modelo: 'modelos/huevo.glb', tam: 0.06, medida: 'entre 5 y 6 cm de alto', credito: '',
+        que: 'Es un huevo de gallina. Es un producto natural de origen animal: lo pone la gallina.',
+        caracteristicas: ['La cáscara es dura, pero frágil: se rompe con un golpe.', 'Puede ser blanco o café, según la raza de la gallina.', 'Por dentro tiene una clara transparente y una yema amarilla.', 'Al cocinarlo, la clara se vuelve blanca y sólida.'],
+        forma: 'Ovalada: un extremo es más ancho y el otro más angosto.',
+        estructura: { p: 'Sus partes son:', li: ['Cáscara: tiene poros diminutos por donde pasa el aire.', 'Membranas: telitas debajo de la cáscara.', 'Cámara de aire: en el extremo ancho.', 'Clara: rodea y protege la yema.', 'Yema: la parte amarilla.', 'Chalazas: cordoncitos que sostienen la yema en el centro.'] },
+        funcion: 'Es un alimento rico en proteínas. En la naturaleza, si el huevo está fecundado, protege y alimenta al pollito mientras se forma. Los huevos que compramos normalmente no tienen pollito.',
+        origen: 'Lo produce la gallina, un ave. La cáscara se forma con calcio que la gallina obtiene de su alimento.',
+        energia: 'La gallina obtiene energía de lo que come, como maíz y otros granos, y la usa para formar el huevo. El huevo guarda energía en proteínas y grasas que nuestro cuerpo aprovecha.'
+      },
+      {
+        id: 'madera', nombre: 'Madera (tronco)', modelo: 'modelos/madera.glb', tam: 0.5, medida: 'este leño, unos 50 cm de largo', credito: '',
+        que: 'Es madera: el material del tronco y las ramas de los árboles. Un tronco o leño recién cortado es un producto natural.',
+        caracteristicas: ['Es dura y resistente, pero se puede cortar, tallar y lijar.', 'La mayoría de las maderas flota en el agua.', 'Se quema con facilidad.', 'Cuando está seca, no conduce bien el calor ni la electricidad.', 'Tiene vetas: líneas que forman dibujos.'],
+        forma: 'Este leño tiene forma de cilindro, como un tubo macizo. Al cortarlo se ven círculos llamados anillos.',
+        estructura: { p: 'Desde afuera hacia el centro:', li: ['Corteza: lo protege.', 'Albura: madera clara por donde sube el agua.', 'Duramen: madera más oscura y dura.', 'Médula: el centro del tronco.', 'Anillos: en lugares con estaciones, cada anillo suele marcar un año de crecimiento.'] },
+        funcion: 'Para el árbol, el tronco lo sostiene y lleva el agua y los nutrientes. Para las personas, la madera sirve para construir casas, muebles, puertas y lápices, para hacer papel y como leña.',
+        origen: 'Viene de los árboles. Para cuidar los bosques, debe venir de árboles sembrados para ese fin o de bosques manejados con responsabilidad.',
+        energia: 'El árbol crece gracias a la energía del sol. La madera guarda esa energía: al quemarla como leña, se libera en forma de calor y luz.'
+      },
+      {
+        id: 'piedra', nombre: 'Piedra (roca)', modelo: 'modelos/piedra.glb', tam: 0.25, medida: 'esta piedra, unos 25 cm', credito: '',
+        que: 'Es una piedra o roca, un producto natural de origen mineral. Se forma en la Tierra sin que las personas intervengan.',
+        caracteristicas: ['Es dura y pesada.', 'No se quema, y el agua y el sol la desgastan muy lentamente.', 'Hay piedras de muchos colores y texturas.', 'Las de río son lisas; otras son ásperas.'],
+        forma: 'Su forma varía. Las piedras de río son redondeadas y lisas porque el agua las desgasta durante mucho tiempo.',
+        estructura: 'Está formada por minerales: pequeños granos o cristales unidos. Por ejemplo, el granito tiene cuarzo, feldespato y mica, que a veces se ven a simple vista.',
+        funcion: 'Sirve para construir muros y caminos. Triturada, se convierte en grava y arena para el concreto. De algunas rocas se obtienen metales como el hierro, y con otras, como la caliza, se fabrica el cemento.',
+        origen: 'Se forma durante miles o millones de años: cuando la lava o el magma se enfrían, cuando capas de arena y barro se endurecen, o por el calor y la presión dentro de la Tierra.',
+        energia: 'En su formación intervienen el calor del interior de la Tierra y la presión. Como objeto, la piedra no necesita energía para cumplir su función.'
+      }
+    ]
+  },
+  tecnologicos: {
+    titulo: 'Productos tecnológicos',
+    icono: 'computador',
+    definicion: 'Un producto tecnológico es un bien que se crea con la ayuda de la tecnología para satisfacer una necesidad.',
+    siguiente: { vista: 'entorno', texto: 'Seguir con objetos de mi entorno' },
+    items: [
+      {
+        id: 'celular', nombre: 'Celular', modelo: 'modelos/celular.glb', tam: 0.15, medida: 'unos 15 cm de alto', credito: '',
+        que: 'Es un teléfono celular inteligente. Es un producto tecnológico: personas lo diseñan y lo fabrican con máquinas para satisfacer la necesidad de comunicarnos.',
+        caracteristicas: ['Es portátil y liviano.', 'Tiene pantalla táctil.', 'Se conecta a internet y a otras redes.', 'Toma fotos y videos.', 'Necesita cargarse.'],
+        forma: 'Rectangular y plana, con las esquinas redondeadas.',
+        estructura: { p: 'Sus partes principales:', li: ['Pantalla táctil de vidrio.', 'Carcasa de plástico, aluminio o vidrio.', 'Batería recargable.', 'Tarjeta con procesador y memoria: su “cerebro”.', 'Cámaras, micrófono y parlante.', 'Antenas, botones y puerto de carga.'] },
+        funcion: 'Sirve para comunicarnos con llamadas y mensajes, buscar información, aprender, tomar fotos y usar aplicaciones, como esta de realidad aumentada.',
+        origen: 'Se fabrica con vidrio (que viene de la arena), metales como aluminio, cobre y un poquito de oro (que vienen de minerales de las rocas), plástico (del petróleo) y litio para la batería.',
+        energia: 'Usa energía eléctrica guardada en su batería de litio. La batería se recarga conectando el cargador a la corriente.'
+      },
+      {
+        id: 'computador', nombre: 'Computador portátil', modelo: 'modelos/computador.glb', tam: 0.34, medida: 'entre 30 y 40 cm de ancho', credito: '',
+        que: 'Es un computador portátil, una máquina que recibe, procesa y guarda información. Es un producto tecnológico.',
+        caracteristicas: ['Se abre y se cierra como un libro.', 'Tiene teclado, pantalla y panel táctil.', 'Procesa información muy rápido.', 'Guarda archivos y se conecta a internet.', 'Funciona con batería o conectado a la corriente.'],
+        forma: 'Dos piezas rectangulares y planas unidas por bisagras.',
+        estructura: { p: 'Sus partes principales:', li: ['Pantalla.', 'Teclado y panel táctil (touchpad).', 'Procesador: el “cerebro” que hace los cálculos.', 'Memoria y disco: donde trabaja y guarda la información.', 'Batería.', 'Puertos USB, cámara, parlantes y ventilador.'] },
+        funcion: 'Sirve para escribir, dibujar, calcular, investigar, ver videos, comunicarnos y programar, por ejemplo en Scratch.',
+        origen: 'Se fabrica con plástico, aluminio, vidrio y cobre. Sus chips se hacen con silicio, que se obtiene de la arena de cuarzo.',
+        energia: 'Usa energía eléctrica: de la corriente cuando está conectado o de su batería recargable cuando no lo está.'
+      },
+      {
+        id: 'ladrillo', nombre: 'Ladrillo', modelo: 'modelos/ladrillo.glb', tam: 0.25, medida: 'unos 25 cm de largo, 12 de ancho y 6 de alto', credito: '',
+        que: 'Es un ladrillo, una pieza para construir. Es un producto tecnológico porque las personas lo fabrican: moldean arcilla y la cocinan en un horno.',
+        caracteristicas: ['Es duro y aguanta mucho peso.', 'Es pesado.', 'Es poroso: tiene huequitos diminutos.', 'Su color rojizo se debe al hierro que tiene la arcilla.', 'Resiste el calor y el fuego.'],
+        forma: 'Prisma rectangular, como una caja. Muchos tienen huecos para ser más livianos.',
+        estructura: 'Es una sola pieza de arcilla cocida. Tiene seis caras, aristas y vértices; algunos tienen perforaciones por dentro.',
+        funcion: 'Sirve para construir paredes, casas, muros y hornos. Los ladrillos se pegan con mortero, una mezcla de cemento, arena y agua.',
+        origen: 'Se hace con arcilla (barro) y agua. La mezcla se moldea, se deja secar y se cuece en un horno a más de 900 °C.',
+        energia: 'Para cumplir su función no necesita energía. Para fabricarlo se usa mucho calor (energía térmica) de hornos que queman carbón, gas o leña.'
+      },
+      {
+        id: 'bicicleta', nombre: 'Bicicleta', modelo: 'modelos/bicicleta.glb', tam: 1.75, medida: 'unos 1,7 m de largo', credito: '',
+        que: 'Es una bicicleta, un vehículo de dos ruedas que se mueve al pedalear. Es un producto tecnológico.',
+        caracteristicas: ['Es liviana y silenciosa.', 'No contamina el aire cuando la usamos.', 'Ayuda a hacer ejercicio.', 'Necesita equilibrio para manejarla.'],
+        forma: 'Su marco tiene forma de triángulos y sus dos ruedas son círculos del mismo tamaño.',
+        estructura: { p: 'Sus partes principales:', li: ['Marco.', 'Manubrio y sillín.', 'Dos ruedas con rin, radios y llanta.', 'Pedales, catalina, cadena y piñón.', 'Frenos.'] },
+        funcion: 'Sirve para transportarnos sin contaminar y para hacer deporte.',
+        origen: 'Su marco es de acero o aluminio, metales que vienen de minerales. Las llantas son de caucho, que puede venir del árbol del caucho o fabricarse a partir del petróleo. El sillín tiene plástico y espuma.',
+        energia: 'Usa la energía de los músculos de quien pedalea. Los pedales mueven la cadena y la cadena hace girar la rueda de atrás. Esa energía viene de los alimentos que comemos, ¡como el banano!'
+      },
+      {
+        id: 'lapiz', nombre: 'Lápiz', modelo: 'modelos/lapiz.glb', tam: 0.19, medida: 'unos 19 cm de largo', credito: '',
+        que: 'Es un lápiz, una herramienta para escribir y dibujar. Es un producto tecnológico.',
+        caracteristicas: ['Es liviano.', 'Lo que escribe se puede borrar.', 'Se gasta con el uso y hay que sacarle punta.'],
+        forma: 'Cilíndrica o hexagonal (de seis caras) para que no ruede; la punta tiene forma de cono.',
+        estructura: { p: 'Sus partes son:', li: ['Cuerpo de madera.', 'Mina: una barrita de grafito mezclado con arcilla.', 'Casquillo de metal.', 'Borrador de caucho.'] },
+        funcion: 'Sirve para escribir, dibujar y hacer cálculos, con trazos que se pueden borrar.',
+        origen: 'Se fabrica con madera de árboles, grafito (un mineral), arcilla, caucho y metal.',
+        energia: 'Usa la energía de los músculos de la mano que lo mueve.'
+      },
+      {
+        id: 'panel-solar', nombre: 'Panel solar', modelo: 'modelos/panel-solar.glb', tam: 1.7, medida: 'unos 1,7 m de largo y 1 m de ancho', credito: '',
+        que: 'Es un panel solar fotovoltaico. Es un producto tecnológico que transforma la luz del sol en electricidad.',
+        caracteristicas: ['No hace ruido.', 'No produce humo mientras funciona.', 'Necesita la luz del sol: de noche no produce energía.', 'Se instala en techos o en terrenos abiertos.'],
+        forma: 'Rectangular y plana, como una lámina grande.',
+        estructura: { p: 'Sus partes son:', li: ['Celdas solares de silicio: los cuadritos oscuros.', 'Vidrio protector.', 'Marco de aluminio.', 'Cables y conectores.'] },
+        funcion: 'Sirve para producir energía eléctrica para casas, colegios y alumbrado. En la región Caribe hay mucho sol, por eso es una buena opción.',
+        origen: 'Se fabrica con silicio (de la arena de cuarzo), vidrio, aluminio y cobre.',
+        energia: 'Usa la energía solar (la luz del sol) y la transforma en energía eléctrica. El sol es una fuente renovable: no se agota.'
+      },
+      {
+        id: 'motocicleta', nombre: 'Motocicleta', modelo: 'modelos/motocicleta.glb', tam: 2.0, medida: 'unos 2 m de largo', credito: '',
+        que: 'Es una motocicleta o moto, un vehículo de dos ruedas con motor. Es un producto tecnológico.',
+        caracteristicas: ['Es rápida.', 'Necesita combustible para funcionar.', 'Hace ruido y su motor suelta gases por el tubo de escape.', 'Se debe usar con casco.'],
+        forma: 'Alargada, con dos ruedas, una detrás de la otra.',
+        estructura: { p: 'Sus partes principales:', li: ['Chasis o marco.', 'Motor.', 'Tanque de gasolina.', 'Manubrio con acelerador y frenos.', 'Sillín, ruedas y luces.', 'Tubo de escape y batería.'] },
+        funcion: 'Sirve para transportar personas y cosas de un lugar a otro rápidamente.',
+        origen: 'Se fabrica con metales como acero y aluminio, plástico, caucho para las llantas y vidrio o plástico para las luces.',
+        energia: 'Usa la energía química de la gasolina, que viene del petróleo: el motor la quema y la convierte en movimiento. Su batería da energía a las luces y al encendido. También hay motos eléctricas que funcionan solo con batería.'
+      }
+    ]
+  }
+};
+
+var ENTORNO = {
+  definicion: 'Un objeto tecnológico es un objeto que tiene una función específica y está diseñado con materiales y herramientas tecnológicas.',
+  pregMateriales: [
+    { k: 'origen', t: '¿De dónde viene?' },
+    { k: 'propiedades', t: '¿Qué propiedades tiene?' },
+    { k: 'casa', t: '¿Dónde lo encuentro en casa?' }
+  ],
+  pregArtefactos: [
+    { k: 'funcion', t: '¿Para qué sirve?' },
+    { k: 'energia', t: '¿Qué energía usa?' },
+    { k: 'materiales', t: '¿De qué materiales está hecho y por qué?' }
+  ],
+  materiales: [
+    { id: 'mat-madera', nombre: 'Madera', ilus: 'mMadera', resumen: 'Material natural de los árboles',
+      origen: { cadena: ['Árbol', 'Tronco', 'Tablas', 'Silla'], p: 'Se obtiene del tronco de los árboles. Las personas la cortan, la secan y la pulen.' },
+      propiedades: ['Resistente y bastante dura.', 'No conduce bien el calor ni la electricidad cuando está seca.', 'Se puede cortar, tallar, lijar y pintar.', 'Arde con facilidad.', 'La mayoría flota en el agua.'],
+      casa: 'Mesas, sillas, puertas, camas, cucharas de palo y el lápiz.' },
+    { id: 'mat-metal', nombre: 'Metal', ilus: 'mMetal', resumen: 'Acero, aluminio, cobre…',
+      origen: { cadena: ['Rocas con minerales', 'Fábrica', 'Metal', 'Olla'], p: 'Se obtiene de minerales que están en las rocas. En fábricas los procesan con mucho calor y energía para separar el metal. Ejemplos: el hierro (con el que se hace el acero), el aluminio y el cobre.' },
+      propiedades: ['Duro y resistente.', 'Conduce muy bien el calor y la electricidad.', 'Brilla cuando está pulido.', 'Se puede doblar, estirar en hilos y moldear.', 'Algunos se oxidan con el agua y el aire, como el hierro, que se pone rojizo.'],
+      casa: 'Ollas, cubiertos, llaves, rejas, latas y los cables de cobre.' },
+    { id: 'mat-plastico', nombre: 'Plástico', ilus: 'mPlastico', resumen: 'Material fabricado por las personas',
+      origen: { cadena: ['Petróleo', 'Refinería', 'Bolitas de plástico', 'Balde'], p: 'La mayoría de los plásticos se fabrica a partir del petróleo y del gas natural. En fábricas se convierten en bolitas que luego se derriten y se moldean.' },
+      propiedades: ['Liviano.', 'Impermeable: no deja pasar el agua.', 'No conduce la electricidad: es aislante.', 'Se moldea con calor en muchas formas y colores.', 'Puede tardar cientos de años en descomponerse; por eso hay que reutilizarlo y reciclarlo.'],
+      casa: 'Baldes, botellas, carcasas de electrodomésticos, cubiertas de cables y juguetes.' },
+    { id: 'mat-vidrio', nombre: 'Vidrio', ilus: 'mVidrio', resumen: 'Se fabrica con arena',
+      origen: { cadena: ['Arena', 'Horno muy caliente', 'Vidrio', 'Vaso'], p: 'Se fabrica derritiendo arena mezclada con otros minerales a más de 1.400 °C. Al enfriarse queda duro y transparente.' },
+      propiedades: ['Transparente: deja pasar la luz.', 'Duro, pero frágil: se rompe con un golpe.', 'Impermeable y fácil de limpiar.', 'Se puede reciclar muchas veces.'],
+      casa: 'Ventanas, vasos, frascos, espejos y pantallas.' },
+    { id: 'mat-ceramica', nombre: 'Cerámica', ilus: 'mCeramica', resumen: 'Arcilla cocida en horno',
+      origen: { cadena: ['Arcilla', 'Moldeado', 'Horno', 'Plato'], p: 'Se hace con arcilla (barro) que se moldea y se cuece en un horno. Muchas piezas llevan una capa brillante llamada esmalte.' },
+      propiedades: ['Dura.', 'Frágil: se quiebra si se cae.', 'Resiste altas temperaturas.', 'No conduce bien la electricidad.', 'Con esmalte es impermeable y fácil de lavar.'],
+      casa: 'Platos, tazas, baldosas, lavamanos, materas, ladrillos y tejas.' },
+    { id: 'mat-tela', nombre: 'Tela de algodón', ilus: 'mTela', resumen: 'Fibras de una planta',
+      origen: { cadena: ['Planta de algodón', 'Fibras', 'Hilo', 'Tela', 'Camiseta'], p: 'Las fibras blancas que envuelven las semillas de la planta de algodón se limpian, se convierten en hilo y se tejen para hacer tela.' },
+      propiedades: ['Suave y flexible.', 'Absorbe el agua y el sudor.', 'Fresca: deja pasar el aire.', 'Se puede lavar muchas veces.', 'Arde si se acerca al fuego.'],
+      casa: 'Camisetas, toallas, sábanas, cortinas y trapos de cocina.' }
+  ],
+  artefactos: [
+    { id: 'art-licuadora', nombre: 'Licuadora', ilus: 'licuadora', resumen: 'Cocina',
+      funcion: 'Tritura y mezcla alimentos para hacer jugos, salsas y sopas.',
+      energia: 'Energía eléctrica. Su motor la transforma en movimiento para hacer girar las cuchillas.',
+      materiales: { partes: [['Jarra', 'vidrio o plástico', 'es transparente, deja ver la mezcla y es fácil de lavar.'], ['Cuchillas', 'acero inoxidable', 'es duro, corta bien y no se oxida fácilmente con los líquidos.'], ['Base', 'plástico', 'es liviano y aísla la electricidad del motor.'], ['Cable', 'cobre cubierto de plástico', 'el cobre conduce la electricidad y el plástico nos protege.']] } },
+    { id: 'art-nevera', nombre: 'Nevera', ilus: 'nevera', resumen: 'Cocina',
+      funcion: 'Mantiene los alimentos fríos para que se conserven más tiempo sin dañarse.',
+      energia: 'Energía eléctrica. Hace funcionar el compresor, que mueve un líquido especial (refrigerante) que saca el calor de adentro y lo suelta afuera, por detrás o por debajo de la nevera.',
+      materiales: { partes: [['Paredes de afuera', 'acero pintado', 'es resistente y fácil de limpiar.'], ['Relleno de las paredes', 'espuma aislante', 'no deja entrar el calor.'], ['Interior', 'plástico', 'es liviano, no se oxida y se lava fácil.'], ['Empaque de la puerta', 'caucho con imán', 'cierra bien para que no entre aire caliente.']] } },
+    { id: 'art-plancha', nombre: 'Plancha', ilus: 'plancha', resumen: 'Ropa',
+      funcion: 'Quita las arrugas de la ropa usando calor y, en algunas, vapor.',
+      energia: 'Energía eléctrica, que una resistencia transforma en calor (energía térmica).',
+      materiales: { partes: [['Base', 'metal (aluminio o acero)', 'conduce el calor hacia la ropa.'], ['Mango', 'plástico resistente al calor', 'no deja pasar bien el calor y protege la mano.'], ['Cable', 'cobre cubierto de plástico', 'el cobre conduce la electricidad y el plástico nos protege.']] } },
+    { id: 'art-ventilador', nombre: 'Ventilador', ilus: 'ventilador', resumen: 'Habitación',
+      funcion: 'Mueve el aire para refrescarnos en los días calurosos.',
+      energia: 'Energía eléctrica. El motor la transforma en movimiento para hacer girar las aspas.',
+      materiales: { partes: [['Aspas', 'plástico', 'es liviano y fácil de mover.'], ['Rejilla', 'metal o plástico', 'protege los dedos de las aspas.'], ['Motor', 'bobinas de cobre', 'el cobre conduce la electricidad.'], ['Base', 'plástico', 'es liviano y aislante.']] } },
+    { id: 'art-olla', nombre: 'Olla', ilus: 'olla', resumen: 'Cocina',
+      funcion: 'Sirve para cocinar alimentos: hervir, guisar o hacer arroz.',
+      energia: 'No usa energía propia: recibe el calor de la estufa, que puede ser de gas o eléctrica.',
+      materiales: { partes: [['Cuerpo', 'aluminio o acero', 'conduce bien el calor hacia la comida.'], ['Mangos', 'plástico resistente al calor o madera', 'no conducen bien el calor y así no nos quemamos.'], ['Tapa', 'metal o vidrio', 'guarda el calor; con vidrio se ve la comida.']] } },
+    { id: 'art-bombillo', nombre: 'Bombillo LED', ilus: 'bombillo', resumen: 'Toda la casa',
+      funcion: 'Ilumina los espacios cuando no hay luz natural.',
+      energia: 'Energía eléctrica, que transforma en luz. Gasta mucho menos energía que un bombillo antiguo de filamento.',
+      materiales: { partes: [['Cubierta', 'plástico o vidrio', 'deja pasar la luz y protege por dentro.'], ['Rosca', 'metal', 'conduce la electricidad desde el plafón.'], ['LED', 'chips semiconductores', 'producen la luz.'], ['Cuerpo', 'plástico o aluminio', 'el aluminio ayuda a sacar el calor.']] } }
+  ],
+  reto: [
+    { q: 'El mango de una olla, para no quemarte la mano.', op: ['Plástico resistente al calor', 'Metal', 'Vidrio'], exp: 'El plástico resistente al calor (o la madera) no deja pasar bien el calor. El metal sí lo conduce, y te quemarías.' },
+    { q: 'Una ventana que deje pasar la luz.', op: ['Vidrio', 'Madera', 'Metal'], exp: 'El vidrio es transparente: deja pasar la luz y no deja pasar el agua de la lluvia.' },
+    { q: 'La parte de adentro de un cable, por donde pasa la electricidad.', op: ['Metal (cobre)', 'Plástico', 'Cerámica'], exp: 'El cobre conduce muy bien la electricidad. El plástico va por fuera para protegernos.' },
+    { q: 'Una toalla para secarte después del baño.', op: ['Tela de algodón', 'Plástico', 'Vidrio'], exp: 'El algodón absorbe el agua. El plástico y el vidrio son impermeables: no la absorben.' },
+    { q: 'La base de una plancha, que debe calentarse.', op: ['Metal', 'Madera', 'Tela de algodón'], exp: 'El metal conduce el calor hacia la ropa. La madera y la tela se quemarían.' },
+    { q: 'Un balde liviano que no se rompa si se cae.', op: ['Plástico', 'Vidrio', 'Tela de algodón'], exp: 'El plástico es liviano, impermeable y no se quiebra fácilmente. El vidrio se rompe y la tela deja salir el agua.' }
+  ]
+};
+
+/* Quiz final. La primera opción de cada pregunta es la correcta; el orden se mezcla al empezar. */
+var QUIZ = [
+  { q: '¿Cuál de estos es un producto natural?', op: ['La papa', 'El celular', 'El ladrillo', 'El lápiz'], ilus: 'papa', exp: 'La papa la obtenemos directamente de la planta. Los otros los fabrican las personas con ayuda de la tecnología.' },
+  { q: '¿Por qué el ladrillo es un producto tecnológico y no un producto natural?', op: ['Porque las personas lo fabrican moldeando arcilla y cociéndola en un horno', 'Porque se encuentra así en la tierra', 'Porque es de color rojo', 'Porque es muy pesado'], ilus: 'ladrillo', exp: 'La arcilla es natural, pero el ladrillo es un producto que las personas fabrican transformándola.' },
+  { q: 'El huevo de gallina es un producto natural de origen…', op: ['animal', 'mineral', 'vegetal', 'tecnológico'], ilus: 'huevo', exp: 'Lo produce la gallina, que es un animal (un ave).' },
+  { q: '¿Qué fuente de energía usa la bicicleta para moverse?', op: ['La energía de los músculos de quien pedalea', 'La electricidad de un tomacorriente', 'La gasolina', 'La luz del sol'], ilus: 'bicicleta', exp: 'Al pedalear, la fuerza de las piernas mueve la cadena y la rueda. Esa energía viene de los alimentos.' },
+  { q: '¿Qué hace un panel solar?', op: ['Transforma la luz del sol en energía eléctrica', 'Calienta el agua del mar', 'Guarda gasolina', 'Convierte la electricidad en luz del sol'], ilus: 'panelSolar', exp: 'Sus celdas de silicio transforman la luz del sol en electricidad. El sol es una fuente renovable.' },
+  { q: '¿Qué energía usan el celular y el computador portátil cuando no están conectados a la corriente?', op: ['La energía eléctrica guardada en su batería', 'La energía del viento', 'La gasolina', 'La energía de los músculos'], ilus: 'celular', exp: 'Su batería recargable guarda energía y la entrega como electricidad.' },
+  { q: 'El vidrio de las ventanas se fabrica principalmente con…', op: ['arena', 'madera', 'algodón', 'petróleo'], ilus: 'mVidrio', exp: 'La arena se derrite con otros minerales a más de 1.400 °C y, al enfriarse, se vuelve vidrio.' },
+  { q: 'El plástico se obtiene principalmente del…', op: ['petróleo', 'árbol del algodón', 'barro o arcilla', 'agua del mar'], ilus: 'mPlastico', exp: 'La mayoría de los plásticos se fabrica a partir del petróleo y del gas natural.' },
+  { q: '¿Por qué las ollas suelen ser de metal?', op: ['Porque el metal conduce bien el calor hacia los alimentos', 'Porque el metal es transparente', 'Porque el metal es blando como la tela', 'Porque el metal no deja pasar el calor'], ilus: 'olla', exp: 'El metal es buen conductor del calor: lleva el calor de la estufa a la comida.' },
+  { q: '¿Por qué el mango de la plancha es de plástico?', op: ['Porque el plástico no deja pasar bien el calor y así no te quemas', 'Porque el plástico conduce la electricidad', 'Porque el plástico brilla más', 'Porque el plástico pesa más que el metal'], ilus: 'plancha', exp: 'El plástico es aislante: no conduce bien el calor ni la electricidad.' },
+  { q: '¿Cuál de estos es un objeto tecnológico de uso doméstico?', op: ['La licuadora', 'El coco', 'La piedra', 'La mazorca'], ilus: 'licuadora', exp: 'La licuadora fue diseñada con materiales y herramientas tecnológicas para cumplir una función en la casa.' },
+  { q: 'Para clasificar un elemento como natural o tecnológico, ¿qué debes hacer primero?', op: ['Observar el objeto', 'Decidir si es natural o tecnológico', 'Comparar con los criterios', 'Adivinar sin mirarlo'], ilus: null, exp: 'Como en la misión final de la sesión 1: observar, reconocer sus características, comparar con los criterios y después decidir.' }
+];
+
+var AUTOEVAL = [
+  { k: 'logre', t: 'Lo logré', cara: 'feliz' },
+  { k: 'aprendiendo', t: 'Estoy aprendiendo', cara: 'neutra' },
+  { k: 'practicar', t: 'Necesito practicar', cara: 'triste' }
+];
+
+/* =========================================================
+   2. ÍCONOS Y DIBUJOS (SVG hechos para esta app)
+   ========================================================= */
+var ICONOS = {
+  lupa: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/>',
+  hoja: '<path d="M5 19C5 9 11 4 20 4c0 9-5 15-15 15Z"/><path d="m5 19 8-8"/>',
+  chip: '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>',
+  casa: '<path d="m3 11 9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
+  estrella: '<path d="m12 3 2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4l-5.3 3 1.2-6-4.5-4.1 6-.7Z"/>',
+  ar: '<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="m12 7 4.5 2.5v5L12 17l-4.5-2.5v-5Z"/><path d="m7.5 9.5 4.5 2.5 4.5-2.5M12 12v5"/>',
+  girar: '<path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/>',
+  centrar: '<circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>',
+  pantalla: '<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>',
+  check: '<path d="m5 12.5 5 5L19 7"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  izq: '<path d="M15 5 8 12l7 7"/>',
+  der: '<path d="m9 5 7 7-7 7"/>',
+  ayuda: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5v.7"/><path d="M12 17.2v.1"/>',
+  descargar: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+  imprimir: '<path d="M7 9V4h10v5"/><rect x="4" y="9" width="16" height="8" rx="2"/><path d="M7 14h10v6H7Z"/>',
+  reiniciar: '<path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v5h5"/>',
+  sinred: '<path d="m3 3 18 18"/><path d="M8.5 7.2A6 6 0 0 1 18 11h.5a3.5 3.5 0 0 1 2 6.4M17 18H7a4 4 0 0 1-1.6-7.7"/>',
+  ojo: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
+  ojoNo: '<path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-2.8 3.7M6.6 6.6C3.7 8.4 2 12 2 12s3.5 7 10 7a9.6 9.6 0 0 0 5.4-1.6"/>'
+};
+
+function icono(n) {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' + (ICONOS[n] || '') + '</svg>';
+}
+
+var SOMBRA = '<ellipse cx="100" cy="182" rx="62" ry="7" fill="#17375E" opacity=".1" stroke="none"/>';
+var ILUS = {
+  banano: SOMBRA +
+    '<path d="M30 84C40 150 130 178 170 92 148 132 78 138 48 80Z" fill="#FFD84D"/>' +
+    '<path d="M44 96c26 44 88 52 116 10" stroke="#E0A800" stroke-width="3"/>' +
+    '<path d="m168 96 6-30 11 3-6 30Z" fill="#8DB14B"/>' +
+    '<path d="m30 84-4-9 13-2 9 7Z" fill="#5B4636"/>',
+  papa: SOMBRA +
+    '<path d="M38 112C34 74 76 50 118 56c44 6 58 44 44 74-14 30-70 36-100 22-16-8-22-24-24-40Z" fill="#D4A15F"/>' +
+    '<path d="M64 86c8-12 22-18 36-18" stroke="#fff" stroke-width="5" opacity=".55"/>' +
+    '<path d="M80 98q6-5 12 0M126 88q6-5 12 0M108 134q6-5 12 0M62 126q5-4 10 0" stroke="#8A5A2B" stroke-width="3.5"/>' +
+    '<g fill="#8A5A2B" stroke="none"><circle cx="146" cy="118" r="2.5"/><circle cx="96" cy="76" r="2"/><circle cx="84" cy="140" r="2"/><circle cx="132" cy="146" r="2.2"/></g>',
+  mazorca: SOMBRA +
+    '<path d="M100 186C58 172 44 118 58 70c12 50 28 86 42 116Z" fill="#7CB342"/>' +
+    '<path d="M100 186c42-14 56-68 42-116-12 50-28 86-42 116Z" fill="#8BC34A"/>' +
+    '<ellipse cx="100" cy="100" rx="32" ry="70" fill="#FFCF33"/>' +
+    '<g stroke="#C99200" stroke-width="2.5"><path d="M84 40c-4 40-4 80 0 120M100 32v136M116 40c4 40 4 80 0 120"/>' +
+    '<path d="M76.7 52q23.3 5 46.6 0M71.5 68q28.5 5 57 0M68.9 84q31.1 5 62.2 0M68 100q32 5 64 0M68.9 116q31.1 5 62.2 0M71.5 132q28.5 5 57 0M76.7 148q23.3 5 46.6 0"/></g>' +
+    '<path d="M100 186c-22-10-30-36-28-58 12 22 22 38 28 58Z" fill="#9CCC65"/>' +
+    '<path d="M100 31c-4-10 4-16-2-24M92 34c-6-8-2-16-10-22M108 34c6-8 2-16 10-22" stroke="#A0522D" stroke-width="3"/>',
+  coco: SOMBRA +
+    '<circle cx="84" cy="94" r="58" fill="#8B5A2B"/>' +
+    '<path d="M46 72q20-12 42-8M40 100q24-8 50-2M50 128q20-6 40 0M100 50q16 6 26 22M112 112q12-6 24-4" stroke="#5E3A17" stroke-width="3"/>' +
+    '<g fill="#3E2410" stroke="none"><ellipse cx="74" cy="60" rx="5" ry="6"/><ellipse cx="92" cy="60" rx="5" ry="6"/><ellipse cx="83" cy="74" rx="5" ry="6"/></g>' +
+    '<path d="M84 140c4 40 92 40 96 0Z" fill="#8B5A2B"/>' +
+    '<ellipse cx="132" cy="140" rx="48" ry="15" fill="#FFFDF5"/>' +
+    '<ellipse cx="132" cy="141" rx="33" ry="8.5" fill="#EFE7D2" stroke="none"/>',
+  huevo: SOMBRA +
+    '<path d="M100 26c38 0 58 66 56 98-2 36-26 54-56 54s-54-18-56-54c-2-32 18-98 56-98Z" fill="#F2DCC2"/>' +
+    '<path d="M76 70c-6 14-10 30-10 42" stroke="#fff" stroke-width="7" opacity=".75"/>' +
+    '<g fill="#D9B892" stroke="none"><circle cx="122" cy="92" r="2.4"/><circle cx="132" cy="128" r="2"/><circle cx="96" cy="150" r="2.2"/></g>',
+  madera: SOMBRA +
+    '<path d="M56 70h102c18 0 18 70 0 70H56Z" fill="#8D5A3B"/>' +
+    '<path d="m118 70 6-18 14 2-2 16Z" fill="#8D5A3B"/><ellipse cx="131" cy="53" rx="7" ry="3" fill="#E9C48C" stroke-width="3"/>' +
+    '<path d="M84 84h46M98 104h56M76 124h50" stroke="#5E3822" stroke-width="3"/>' +
+    '<ellipse cx="56" cy="105" rx="24" ry="35" fill="#E9C48C"/>' +
+    '<g stroke="#B9874A" stroke-width="2.5"><ellipse cx="56" cy="105" rx="16" ry="24"/><ellipse cx="56" cy="105" rx="8" ry="12"/></g>' +
+    '<circle cx="56" cy="105" r="2.5" fill="#8D5A3B" stroke="none"/>',
+  piedra: SOMBRA +
+    '<path d="m30 146 16-48 38-32 48-2 36 36 6 40-24 20-90 2Z" fill="#A3ADB8"/>' +
+    '<path d="m46 98 38-32 48-2-14 40-38 6Z" fill="#C3CAD2" stroke-width="3"/>' +
+    '<path d="m132 64 36 36 6 40-34-12-22-24Z" fill="#8E99A6" stroke-width="3"/>' +
+    '<g fill="#fff" stroke="none" opacity=".8"><circle cx="70" cy="132" r="2.5"/><circle cx="100" cy="88" r="2"/><circle cx="150" cy="132" r="2"/></g>' +
+    '<g fill="#5E6B78" stroke="none"><circle cx="92" cy="140" r="2.5"/><circle cx="124" cy="84" r="2"/><circle cx="60" cy="112" r="2"/></g>' +
+    '<ellipse cx="166" cy="164" rx="18" ry="10" fill="#7F8B98"/>',
+  celular: SOMBRA +
+    '<rect x="62" y="18" width="76" height="160" rx="16" fill="#2A3F5F"/>' +
+    '<rect x="70" y="34" width="60" height="124" rx="6" fill="#7FD3F7" stroke-width="3"/>' +
+    '<g stroke="none"><rect x="78" y="46" width="12" height="12" rx="3" fill="#FFC93C"/><rect x="94" y="46" width="12" height="12" rx="3" fill="#43A85A"/><rect x="110" y="46" width="12" height="12" rx="3" fill="#F28C28"/>' +
+    '<rect x="78" y="64" width="12" height="12" rx="3" fill="#8E6BD8"/><rect x="94" y="64" width="12" height="12" rx="3" fill="#E53E3E"/><rect x="110" y="64" width="12" height="12" rx="3" fill="#fff"/>' +
+    '<circle cx="100" cy="26" r="3" fill="#7FD3F7"/><rect x="88" y="164" width="24" height="5" rx="2.5" fill="#9FB3C8"/></g>',
+  computador: SOMBRA +
+    '<rect x="42" y="36" width="116" height="84" rx="8" fill="#2A3F5F"/>' +
+    '<rect x="50" y="44" width="100" height="66" rx="3" fill="#7FD3F7" stroke-width="3"/>' +
+    '<g stroke="none"><rect x="58" y="54" width="44" height="10" rx="4" fill="#FFC93C"/><rect x="66" y="68" width="40" height="10" rx="4" fill="#2F95DC"/><rect x="66" y="82" width="32" height="10" rx="4" fill="#8E6BD8"/><rect x="58" y="96" width="30" height="8" rx="4" fill="#FFC93C"/></g>' +
+    '<path d="M26 126h148l-10 28H36Z" fill="#B8C7D6"/>' +
+    '<path d="M48 134h104M52 141h96" stroke-width="3"/><rect x="86" y="146" width="28" height="5" rx="2" fill="#8EA3B8" stroke="none"/>',
+  ladrillo: SOMBRA +
+    '<path d="m30 96 80-30 62 22-80 30Z" fill="#E58A5C"/>' +
+    '<path d="M30 96l62 22v34l-62-22Z" fill="#C2552D"/>' +
+    '<path d="m92 118 80-30v34l-80 30Z" fill="#A8441F"/>' +
+    '<g fill="#7A2E14" stroke-width="3"><ellipse cx="77" cy="101" rx="9" ry="5" transform="rotate(-20 77 101)"/><ellipse cx="101" cy="92" rx="9" ry="5" transform="rotate(-20 101 92)"/><ellipse cx="125" cy="83" rx="9" ry="5" transform="rotate(-20 125 83)"/></g>',
+  bicicleta: SOMBRA +
+    '<g stroke-width="6"><circle cx="52" cy="132" r="32" fill="#fff"/><circle cx="148" cy="132" r="32" fill="#fff"/></g>' +
+    '<path d="M52 104v56M24 132h56M148 104v56M120 132h56" stroke="#9FB3C8" stroke-width="2"/>' +
+    '<path d="M52 132h46l-12-52Zm34-52 50 2-38 50m38-50 12 50" stroke="#E53E3E" stroke-width="7"/>' +
+    '<path d="M72 74h26M86 80l-2-6" stroke-width="7"/><path d="m136 82-4-16M124 64h18" stroke-width="6"/>' +
+    '<circle cx="98" cy="132" r="9" fill="#B8C7D6"/><path d="m98 132 10 14M102 148h12" stroke-width="5"/>' +
+    '<circle cx="52" cy="132" r="4" fill="#17375E"/><circle cx="148" cy="132" r="4" fill="#17375E"/>',
+  lapiz: SOMBRA +
+    '<g transform="rotate(-35 100 100)">' +
+    '<rect x="40" y="86" width="100" height="28" fill="#FFC93C"/><path d="M40 95.5h100M40 104.5h100" stroke="#D99A00" stroke-width="2.5"/>' +
+    '<rect x="26" y="86" width="16" height="28" fill="#B8C7D6"/><path d="M31 86v28M37 86v28" stroke-width="2"/>' +
+    '<path d="M14 86h12v28H14c-6 0-6-28 0-28Z" fill="#F48FB1"/>' +
+    '<path d="m140 86 32 14-32 14Z" fill="#F1D3A2"/><path d="m162 95.6 10 4.4-10 4.4Z" fill="#37474F"/></g>',
+  panelSolar: SOMBRA +
+    '<circle cx="160" cy="38" r="17" fill="#FFC93C"/><path d="M160 10v6M160 60v6M132 38h6M182 38h6M140 18l4 4M176 54l4 4M180 18l-4 4" stroke-width="3.5"/>' +
+    '<path d="M80 125 84 172M130 132l-2 40M60 172h92" stroke-width="5"/>' +
+    '<path d="m30 118 40-60 100 14-40 60Z" fill="#1E5AA8"/>' +
+    '<path d="M43.3 98 143.3 112M56.7 78l100 14M55 121.5l40-60M80 125l40-60M105 128.5l40-60" stroke="#8CC8F5" stroke-width="2"/>' +
+    '<path d="m30 118 40-60 100 14-40 60Z"/><path d="m78 70 16 2" stroke="#fff" stroke-width="3" opacity=".7"/>',
+  motocicleta: SOMBRA +
+    '<g stroke-width="8"><circle cx="50" cy="140" r="27" fill="#fff"/><circle cx="152" cy="140" r="27" fill="#fff"/></g>' +
+    '<circle cx="50" cy="140" r="11" fill="#B8C7D6"/><circle cx="152" cy="140" r="11" fill="#B8C7D6"/>' +
+    '<path d="M50 140l34-22M136 84l16 56" stroke-width="6"/>' +
+    '<rect x="82" y="114" width="32" height="22" rx="5" fill="#90A4AE"/>' +
+    '<path d="M70 112c6-18 34-24 50-16l14 8-16 14H84Z" fill="#E53E3E"/>' +
+    '<path d="M50 104c10-8 30-8 40-4l-4 10H56Z" fill="#17375E"/>' +
+    '<path d="M86 138H40l-6-6" stroke-width="6"/><path d="M128 80l16-2" stroke-width="6"/>' +
+    '<circle cx="146" cy="96" r="7" fill="#FFF59D"/>',
+  mMadera: SOMBRA +
+    '<rect x="28" y="54" width="144" height="30" rx="6" fill="#E2AE72"/><rect x="28" y="88" width="144" height="30" rx="6" fill="#D39B5E"/><rect x="28" y="122" width="144" height="30" rx="6" fill="#E2AE72"/>' +
+    '<g stroke="#A86F3A" stroke-width="2.5"><path d="M40 66q30-8 60 0t60 0M48 100q24 8 48 0t62 2M40 136q36-8 70 0t52-2"/><ellipse cx="128" cy="70" rx="8" ry="4"/></g>',
+  mMetal: SOMBRA +
+    '<path d="M100 30 158 64v68l-58 34-58-34V64Z" fill="#B8C7D6"/>' +
+    '<path d="M100 30 158 64 100 98 42 64Z" fill="#D5DFE8" stroke-width="3"/>' +
+    '<circle cx="100" cy="100" r="26" fill="#EAF5FB"/><path d="M52 78 64 72M136 70l10 6" stroke="#fff" stroke-width="4"/>',
+  mPlastico: SOMBRA +
+    '<rect x="86" y="14" width="28" height="16" rx="4" fill="#2F95DC"/>' +
+    '<path d="M88 30h24v10c0 8 22 16 22 38v82c0 10-8 16-18 16H84c-10 0-18-6-18-16V78c0-22 22-30 22-38Z" fill="#9EDBF7"/>' +
+    '<rect x="66" y="96" width="68" height="36" fill="#43A85A"/><path d="M78 58c-6 10-6 22-6 30" stroke="#fff" stroke-width="5" opacity=".8"/>',
+  mVidrio: SOMBRA +
+    '<path d="M56 38h88l-12 132H68Z" fill="#E4F5FC"/>' +
+    '<path d="M60.4 86h79.2L132 170H68Z" fill="#9FDCF5" stroke="none"/>' +
+    '<path d="M56 38h88l-12 132H68Z"/><path d="M60.4 86h79.2" stroke-width="3"/>' +
+    '<path d="M72 52l6 90M88 52l3 40" stroke="#fff" stroke-width="5" opacity=".9"/>',
+  mCeramica: SOMBRA +
+    '<ellipse cx="100" cy="150" rx="74" ry="22" fill="#fff"/><ellipse cx="100" cy="148" rx="48" ry="12" stroke-width="3"/>' +
+    '<path d="M132 82c22 0 22 30 0 30" stroke-width="8"/>' +
+    '<path d="M68 66h64v56c0 14-12 22-32 22s-32-8-32-22Z" fill="#4FA3D9"/>' +
+    '<g fill="#fff" stroke="none"><circle cx="84" cy="96" r="4"/><circle cx="100" cy="110" r="4"/><circle cx="116" cy="96" r="4"/></g><ellipse cx="100" cy="66" rx="32" ry="7" fill="#DCEFFA"/>',
+  mTela: SOMBRA +
+    '<rect x="34" y="104" width="132" height="32" rx="12" fill="#8E6BD8"/><rect x="42" y="134" width="116" height="32" rx="12" fill="#F28C28"/>' +
+    '<path d="M50 120h100M58 150h84" stroke="#fff" stroke-width="2.5" stroke-dasharray="5 6"/>' +
+    '<path d="M78 96 100 104l22-8-6 12H84Z" fill="#8D5A3B"/>' +
+    '<circle cx="84" cy="74" r="18" fill="#fff"/><circle cx="116" cy="74" r="18" fill="#fff"/><circle cx="100" cy="58" r="18" fill="#fff"/><circle cx="100" cy="84" r="16" fill="#fff"/>',
+  licuadora: SOMBRA +
+    '<path d="M64 140h72l8 38H56Z" fill="#2F95DC"/><circle cx="88" cy="160" r="5" fill="#fff"/><circle cx="112" cy="160" r="5" fill="#fff"/>' +
+    '<path d="M66 40h74l-8 100H72Z" fill="#E4F5FC"/>' +
+    '<path d="M70 90h66.2L132 140H72Z" fill="#FFB74D" stroke="none"/>' +
+    '<path d="M66 40h74l-8 100H72Z"/><path d="M140 54c22 2 20 58-4 58" stroke-width="7"/>' +
+    '<rect x="60" y="28" width="86" height="13" rx="5" fill="#17375E"/><path d="m90 128 20 8m0-8-20 8" stroke-width="3"/>',
+  nevera: SOMBRA +
+    '<rect x="54" y="16" width="92" height="164" rx="10" fill="#EEF4F8"/><path d="M54 72h92" />' +
+    '<rect x="128" y="34" width="7" height="26" rx="3.5" fill="#90A4AE"/><rect x="128" y="86" width="7" height="40" rx="3.5" fill="#90A4AE"/>' +
+    '<rect x="70" y="92" width="22" height="22" rx="3" fill="#FFC93C" stroke-width="3" transform="rotate(-6 81 103)"/>' +
+    '<path d="M60 176v6M140 176v6" stroke-width="5"/>',
+  plancha: SOMBRA +
+    '<path d="M80 100c2-34 70-38 78-2" stroke-width="12"/>' +
+    '<path d="M36 136c14-26 54-40 122-40l14 40Z" fill="#8E6BD8"/>' +
+    '<path d="M28 136h146l-6 12H40Z" fill="#B8C7D6"/>' +
+    '<circle cx="128" cy="118" r="8" fill="#fff"/><path d="M50 164q6-8 0-16M70 168q6-8 0-16" stroke="#9FB3C8" stroke-width="3"/>',
+  ventilador: SOMBRA +
+    '<rect x="94" y="132" width="12" height="38" fill="#90A4AE"/><ellipse cx="100" cy="172" rx="40" ry="10" fill="#2A3F5F"/>' +
+    '<circle cx="100" cy="76" r="58" fill="#F3F9FD"/>' +
+    '<g fill="#2F95DC"><path d="M100 76C88 58 92 32 108 32c16 2 8 28-8 44Z"/><path d="M100 76C88 58 92 32 108 32c16 2 8 28-8 44Z" transform="rotate(120 100 76)"/><path d="M100 76C88 58 92 32 108 32c16 2 8 28-8 44Z" transform="rotate(240 100 76)"/></g>' +
+    '<circle cx="100" cy="76" r="10" fill="#17375E"/><circle cx="100" cy="76" r="40" stroke="#9FB3C8" stroke-width="2"/><path d="M42 76h116M100 18v116" stroke="#9FB3C8" stroke-width="2"/><circle cx="100" cy="76" r="58"/>',
+  olla: SOMBRA +
+    '<path d="M70 44q-6-10 0-20M100 44q-6-10 0-20M130 44q-6-10 0-20" stroke="#9FB3C8" stroke-width="3.5"/>' +
+    '<rect x="16" y="98" width="30" height="13" rx="6.5" fill="#17375E"/><rect x="154" y="98" width="30" height="13" rx="6.5" fill="#17375E"/>' +
+    '<path d="M44 86h112v54c0 18-12 26-28 26H72c-16 0-28-8-28-26Z" fill="#B8C7D6"/>' +
+    '<path d="M38 86c8-24 116-24 124 0Z" fill="#D5DFE8"/><rect x="90" y="54" width="20" height="10" rx="4" fill="#17375E"/>' +
+    '<path d="M58 110v34" stroke="#fff" stroke-width="5" opacity=".8"/>',
+  bombillo: SOMBRA +
+    '<path d="M100 18c34 0 56 26 52 58-2 20-18 32-24 48H72c-6-16-22-28-24-48-4-32 18-58 52-58Z" fill="#FFF59D"/>' +
+    '<rect x="72" y="124" width="56" height="13" rx="3" fill="#B8C7D6"/><rect x="76" y="137" width="48" height="11" rx="3" fill="#B8C7D6"/><rect x="80" y="148" width="40" height="11" rx="3" fill="#B8C7D6"/>' +
+    '<path d="M92 159h16l-4 10h-8Z" fill="#17375E"/>' +
+    '<g fill="#FFC93C" stroke-width="3"><rect x="84" y="78" width="10" height="10" rx="2"/><rect x="106" y="78" width="10" height="10" rx="2"/><rect x="95" y="60" width="10" height="10" rx="2"/></g>' +
+    '<path d="M24 60h-12M188 60h-12M36 22l-8-8M164 22l8-8" stroke="#E0A800" stroke-width="4"/>'
+};
+
+function ilus(n) {
+  return '<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><g fill="none" stroke="#17375E" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round">' + (ILUS[n] || '') + '</g></svg>';
+}
+function ilusInterna(n, x, y, w) {
+  return '<svg x="' + x + '" y="' + y + '" width="' + w + '" height="' + w + '" viewBox="0 0 200 200"><g fill="none" stroke="#17375E" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round">' + (ILUS[n] || '').replace(SOMBRA, '') + '</g></svg>';
+}
+function cara(tipo) {
+  var colores = { feliz: '#43A85A', neutra: '#FFC93C', triste: '#F28C28' };
+  var bocas = { feliz: '<path d="M14 26q6 6 12 0"/>', neutra: '<path d="M14 26h12"/>', triste: '<path d="M14 28q6-6 12 0"/>' };
+  return '<svg viewBox="0 0 40 40" aria-hidden="true" focusable="false"><g stroke="#17375E" stroke-width="2.5" stroke-linecap="round"><circle cx="20" cy="20" r="17" fill="' + colores[tipo] + '"/><circle cx="14" cy="16" r="1.6" fill="#17375E"/><circle cx="26" cy="16" r="1.6" fill="#17375E"/><g fill="none">' + bocas[tipo] + '</g></g></svg>';
+}
+
+/* =========================================================
+   3. UTILIDADES Y ESTADO
+   ========================================================= */
+function $(s, c) { return (c || document).querySelector(s); }
+function $$(s, c) { return Array.prototype.slice.call((c || document).querySelectorAll(s)); }
+function el(tag, attrs) {
+  var e = document.createElement(tag);
+  if (attrs) Object.keys(attrs).forEach(function (k) {
+    var v = attrs[k];
+    if (v === null || v === undefined || v === false) return;
+    if (k === 'class') e.className = v;
+    else if (k === 'text') e.textContent = v;
+    else if (k === 'svg') e.innerHTML = v; // solo SVG fijos definidos en este archivo
+    else if (k.indexOf('on') === 0) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v === true ? '' : v);
+  });
+  for (var i = 2; i < arguments.length; i++) agregar(e, arguments[i]);
+  return e;
+}
+function agregar(e, hijo) {
+  if (hijo === null || hijo === undefined || hijo === false) return;
+  if (Array.isArray(hijo)) { hijo.forEach(function (h) { agregar(e, h); }); return; }
+  e.appendChild(hijo.nodeType ? hijo : document.createTextNode(String(hijo)));
+}
+function svgEl(html, cls) { var s = el('span', { class: cls || 'ico', svg: html }); s.setAttribute('aria-hidden', 'true'); return s; }
+
+var CLAVE = 'exploradores-s2-v1';
+var estado = cargarEstado();
+function cargarEstado() {
+  var base = { vistas: {}, idx: { naturales: 0, tecnologicos: 0 }, girar: !reducirMovimiento(), reto: {}, quiz: null, pestana: 'materiales' };
+  try {
+    var t = localStorage.getItem(CLAVE);
+    if (t) { var d = JSON.parse(t); Object.keys(base).forEach(function (k) { if (d[k] !== undefined) base[k] = d[k]; }); }
+  } catch (e) { /* almacenamiento no disponible: se usa memoria */ }
+  return base;
+}
+var tGuardar = null;
+function guardar() {
+  clearTimeout(tGuardar);
+  tGuardar = setTimeout(function () {
+    try { localStorage.setItem(CLAVE, JSON.stringify(estado)); } catch (e) { /* sin almacenamiento: el avance dura mientras la página esté abierta */ }
+  }, 150);
+}
+function reducirMovimiento() { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+function vistasDe(id) { return estado.vistas[id] || []; }
+function marcarVista(id, k) { var v = vistasDe(id); if (v.indexOf(k) === -1) { v.push(k); estado.vistas[id] = v; guardar(); } }
+
+var tAviso = null;
+function aviso(msg, ms) {
+  var a = $('#aviso');
+  a.textContent = msg;
+  a.classList.add('ver');
+  clearTimeout(tAviso);
+  tAviso = setTimeout(function () { a.classList.remove('ver'); }, ms || 4500);
+}
+
+/* =========================================================
+   4. RESPUESTAS REVELABLES (componente común)
+   ========================================================= */
+function contenidoRespuesta(valor) {
+  var frag = document.createDocumentFragment();
+  if (typeof valor === 'string') { frag.appendChild(el('p', { text: valor })); return frag; }
+  if (Array.isArray(valor)) { frag.appendChild(el('ul', null, valor.map(function (t) { return el('li', { text: t }); }))); return frag; }
+  if (valor.cadena) {
+    var c = el('div', { class: 'cadena' });
+    valor.cadena.forEach(function (paso, i) {
+      if (i > 0) c.appendChild(svgEl(icono('der')));
+      c.appendChild(el('span', { text: paso }));
+    });
+    frag.appendChild(c);
+  }
+  if (valor.partes) {
+    frag.appendChild(el('ul', null, valor.partes.map(function (p) {
+      return el('li', null, el('strong', { text: p[0] }), ' de ' + p[1] + ': ' + p[2]);
+    })));
+  }
+  if (valor.p) frag.appendChild(el('p', { text: valor.p }));
+  if (valor.li) frag.appendChild(el('ul', null, valor.li.map(function (t) { return el('li', { text: t }); })));
+  return frag;
+}
+
+var contadorPistas = 0;
+function crearPistas(id, preguntas, datos, alCambiar) {
+  var lista = el('ol', { class: 'lista-pistas' });
+  var letras = 'ABCDEFGHIJ';
+  var botones = [];
+  preguntas.forEach(function (pr, i) {
+    var idResp = 'resp-' + (++contadorPistas);
+    var ver = el('span', { class: 'pista-ver' });
+    var btn = el('button', { class: 'pista', type: 'button', 'aria-expanded': 'false', 'aria-controls': idResp },
+      el('span', { class: 'letra', 'aria-hidden': 'true', text: letras[i] }),
+      el('span', { text: pr.t }),
+      ver);
+    var resp = el('div', { class: 'respuesta', id: idResp, hidden: true }, contenidoRespuesta(datos[pr.k]));
+    function poner(abierto) {
+      btn.setAttribute('aria-expanded', String(abierto));
+      resp.hidden = !abierto;
+      ver.innerHTML = icono(abierto ? 'ojoNo' : 'ojo');
+      ver.appendChild(el('span', { class: 'ver-txt', text: abierto ? 'Ocultar' : 'Ver respuesta' }));
+      if (abierto) marcarVista(id, pr.k);
+    }
+    poner(false);
+    btn.addEventListener('click', function () {
+      poner(btn.getAttribute('aria-expanded') !== 'true');
+      if (alCambiar) alCambiar();
+    });
+    botones.push(poner);
+    lista.appendChild(el('li', null, btn, resp));
+  });
+  lista.abrirTodas = function (abrir) { botones.forEach(function (p) { p(abrir); }); if (alCambiar) alCambiar(); };
+  return lista;
+}
+
+/* =========================================================
+   5. EXPLORAR (productos naturales y tecnológicos)
+   ========================================================= */
+var REF = {};
+var visor = { listo: false, fallo: false };
+var EXISTE = {};
+var ORBITA = '0deg 75deg 105%';
+
+function itemActual(cat) { return DATOS[cat].items[estado.idx[cat]] || DATOS[cat].items[0]; }
+function completo(cat, item) { return vistasDe(item.id).length >= PREGUNTAS[cat].length; }
+function nombreVisible(item) { return vistasDe(item.id).indexOf('que') !== -1; }
+
+function construirExplorar(cat) {
+  var d = DATOS[cat];
+  var sec = $('#v-' + cat);
+  var r = REF[cat] = { cat: cat, chips: [] };
+
+  r.progreso = el('p', { class: 'ex-progreso', role: 'status' });
+  sec.appendChild(el('div', null,
+    el('div', { class: 'ex-cab' }, el('h2', { id: 't-' + cat, text: d.titulo }), r.progreso),
+    el('div', { class: 'ex-def' }, svgEl(ilus(d.icono === 'hoja' ? 'mazorca' : 'computador')), el('p', { text: d.definicion }))
+  ));
+
+  var chips = el('ol', { class: 'chips', 'aria-label': 'Elementos de ' + d.titulo.toLowerCase() });
+  d.items.forEach(function (item, i) {
+    var avance = el('span');
+    var btn = el('button', { class: 'chip', type: 'button', onclick: function () { mostrarItem(cat, i); } },
+      el('span', { text: String(i + 1), 'aria-hidden': 'true' }),
+      el('span', { class: 'chip-avance', 'aria-hidden': 'true' }, avance),
+      el('span', { class: 'chip-ok', svg: icono('check'), 'aria-hidden': 'true' }));
+    r.chips.push({ btn: btn, avance: avance });
+    chips.appendChild(el('li', null, btn));
+  });
+  r.chipsLista = chips;
+  sec.appendChild(chips);
+
+  // Visor
+  var v = document.createElement('model-viewer');
+  var atributos = {
+    'camera-controls': '', 'touch-action': 'pan-y', 'shadow-intensity': '1', 'shadow-softness': '0.8',
+    'environment-image': 'neutral', 'exposure': '1', 'ar': '', 'ar-modes': 'webxr scene-viewer quick-look',
+    'ar-scale': 'auto', 'ar-placement': 'floor', 'loading': 'eager', 'camera-orbit': ORBITA,
+    'rotation-per-second': '24deg', 'auto-rotate-delay': '800', 'interaction-prompt': 'auto'
+  };
+  Object.keys(atributos).forEach(function (k) { v.setAttribute(k, atributos[k]); });
+  if (estado.girar) v.setAttribute('auto-rotate', '');
+  var slotAR = el('div', { slot: 'ar-button', hidden: true });
+  var slotBarra = el('div', { slot: 'progress-bar' });
+  v.appendChild(slotAR); v.appendChild(slotBarra);
+  r.viewer = v;
+
+  r.ilus = el('div', { class: 'escenario-ilus' });
+  r.etiqueta = el('div', { class: 'etiqueta' });
+  r.cargaBarra = el('span');
+  r.estadoTxt = el('span');
+  r.escenario = el('figure', { class: 'escenario', 'data-estado': 'cargando', style: 'margin:0' },
+    v, r.ilus, r.etiqueta,
+    el('figcaption', { class: 'escenario-estado', role: 'status' }, r.estadoTxt, el('div', { class: 'carga' }, r.cargaBarra)));
+
+  r.btnAR = el('button', { class: 'btn btn-color btn-ar', type: 'button', 'aria-disabled': 'true', 'aria-describedby': 'nota-ar-' + cat, onclick: function () { abrirAR(cat); } },
+    svgEl(icono('ar')), 'Ver en realidad aumentada');
+  r.notaAR = el('p', { class: 'ar-nota', id: 'nota-ar-' + cat });
+  r.btnGirar = el('button', { class: 'btn btn-suave', type: 'button', 'aria-pressed': String(estado.girar), onclick: function () { alternarGiro(cat); } }, svgEl(icono('girar')), 'Girar solo');
+  r.btnCentrar = el('button', { class: 'btn btn-suave', type: 'button', onclick: function () { centrar(cat); } }, svgEl(icono('centrar')), 'Centrar vista');
+  r.btnPantalla = el('button', { class: 'btn btn-suave', type: 'button', onclick: function () { pantallaCompleta(cat); } }, svgEl(icono('pantalla')), el('span', { text: 'Pantalla completa' }));
+  if (!(document.fullscreenEnabled || document.webkitFullscreenEnabled)) r.btnPantalla.hidden = true;
+  r.credito = el('p', { class: 'credito' });
+
+  var colVisor = el('div', { class: 'col-visor' },
+    r.escenario,
+    el('div', { class: 'ar-zona' }, r.btnAR, r.notaAR),
+    el('div', { class: 'herramientas' }, r.btnGirar, r.btnCentrar, r.btnPantalla),
+    el('p', { class: 'pista-uso', text: 'Arrastra con el dedo para girar. Pellizca para acercar o alejar.' }),
+    r.credito);
+
+  // Preguntas
+  r.cuenta = el('span', { class: 'pistas-cuenta' });
+  r.listaCont = el('div');
+  r.btnTodas = el('button', { class: 'btn btn-suave', type: 'button', onclick: function () {
+    var abrir = r.btnTodas.dataset.abrir !== 'no';
+    r.lista.abrirTodas(abrir);
+  } });
+  r.btnAnt = el('button', { class: 'btn', type: 'button', onclick: function () { mover(cat, -1); } }, svgEl(icono('izq')), 'Anterior');
+  r.btnSig = el('button', { class: 'btn btn-color', type: 'button', onclick: function () { mover(cat, 1); } }, el('span', { text: 'Siguiente' }), svgEl(icono('der')));
+  var colPistas = el('div', { class: 'pistas' },
+    el('h3', { text: 'Observa y responde en tu cuaderno' }),
+    el('p', { class: 'texto-suave', text: 'Primero escribe tu respuesta. Después toca la pregunta para comprobar.' }),
+    r.listaCont,
+    el('div', { class: 'pistas-pie' }, r.cuenta, r.btnTodas),
+    el('div', { class: 'item-nav' }, r.btnAnt, r.btnSig));
+
+  sec.appendChild(el('div', { class: 'ex-cuerpo' }, colVisor, colPistas));
+
+  v.addEventListener('progress', function (e) {
+    if (r.escenario.dataset.estado !== 'cargando') return;
+    var p = Math.round((e.detail && e.detail.totalProgress || 0) * 100);
+    r.cargaBarra.style.width = p + '%';
+  });
+  v.addEventListener('load', function () { alCargarModelo(cat); });
+  v.addEventListener('error', function () {
+    var item = itemActual(cat);
+    if (v.getAttribute('src') !== item.modelo) return;
+    r.fallido = item.id;
+    ponerEstado(cat, 'error');
+  });
+  v.addEventListener('ar-status', function (e) {
+    var s = e.detail && e.detail.status;
+    if (s === 'failed') aviso('No se pudo abrir la realidad aumentada en este equipo. Puedes seguir explorando el modelo en 3D.', 6500);
+  });
+  document.addEventListener('fullscreenchange', function () { actualizarPantalla(cat); });
+  document.addEventListener('webkitfullscreenchange', function () { actualizarPantalla(cat); });
+}
+
+function mover(cat, paso) {
+  var n = DATOS[cat].items.length;
+  var i = estado.idx[cat] + paso;
+  if (i >= n) { location.hash = DATOS[cat].siguiente.vista; return; }
+  if (i < 0) return;
+  mostrarItem(cat, i);
+  var r = REF[cat];
+  if (r.chipsLista.getBoundingClientRect().top < 0) r.chipsLista.scrollIntoView({ block: 'start', behavior: reducirMovimiento() ? 'auto' : 'smooth' });
+}
+
+function mostrarItem(cat, i) {
+  var r = REF[cat];
+  estado.idx[cat] = i; guardar();
+  var item = itemActual(cat);
+  r.ilus.innerHTML = ilus(item.id === 'panel-solar' ? 'panelSolar' : item.id);
+  r.lista = crearPistas(item.id, PREGUNTAS[cat], item, function () { actualizarProgreso(cat); });
+  r.listaCont.textContent = '';
+  r.listaCont.appendChild(r.lista);
+  r.credito.textContent = item.credito ? 'Modelo 3D: ' + item.credito : '';
+  r.btnAnt.disabled = i === 0;
+  var ultimo = i === DATOS[cat].items.length - 1;
+  r.btnSig.firstChild.textContent = ultimo ? DATOS[cat].siguiente.texto : 'Siguiente';
+  actualizarProgreso(cat);
+  cargarModelo(cat);
+}
+
+function actualizarProgreso(cat) {
+  var r = REF[cat]; var d = DATOS[cat];
+  var item = itemActual(cat);
+  var total = PREGUNTAS[cat].length;
+  var completos = 0;
+  d.items.forEach(function (it, i) {
+    var n = vistasDe(it.id).length;
+    if (n >= total) completos++;
+    var c = r.chips[i];
+    c.btn.setAttribute('aria-current', i === estado.idx[cat] ? 'true' : 'false');
+    c.btn.classList.toggle('completo', n >= total);
+    c.avance.style.width = Math.round(n / total * 100) + '%';
+    c.btn.setAttribute('aria-label', 'Elemento ' + (i + 1) + (nombreVisible(it) ? ': ' + it.nombre : '') + '. ' + n + ' de ' + total + ' respuestas vistas');
+    c.btn.title = nombreVisible(it) ? it.nombre : 'Elemento ' + (i + 1);
+  });
+  r.progreso.textContent = 'Exploraste ' + completos + ' de ' + d.items.length;
+  var vistas = vistasDe(item.id).length;
+  r.cuenta.textContent = vistas + ' de ' + total + ' respuestas vistas';
+  var abiertas = $$('.pista[aria-expanded="true"]', r.listaCont).length;
+  r.btnTodas.dataset.abrir = abiertas === total ? 'no' : 'si';
+  r.btnTodas.textContent = abiertas === total ? 'Ocultar todas' : 'Ver todas las respuestas';
+  var i = estado.idx[cat];
+  r.etiqueta.textContent = nombreVisible(item) ? (i + 1) + '. ' + item.nombre : 'Elemento ' + (i + 1) + ' de ' + d.items.length;
+  r.viewer.setAttribute('alt', nombreVisible(item) ? 'Modelo 3D: ' + item.nombre : 'Modelo 3D del elemento ' + (i + 1));
+  actualizarAR(cat);
+}
+
+function existeModelo(url) {
+  if (EXISTE[url] !== undefined) return Promise.resolve(EXISTE[url]);
+  var enCache = ('caches' in window) ? caches.match(url).catch(function () { return null; }) : Promise.resolve(null);
+  return enCache.then(function (c) {
+    if (c) { EXISTE[url] = true; return true; }
+    return fetch(url, { method: 'HEAD', cache: 'no-store' }).then(function (res) {
+      // Algunos servidores locales no aceptan HEAD: en ese caso se intenta cargar igual.
+      var ok = res.ok || res.status === 405 || res.status === 501;
+      EXISTE[url] = ok;
+      return ok;
+    }).catch(function () { return null; });
+  });
+}
+
+function cargarModelo(cat) {
+  var r = REF[cat]; var item = itemActual(cat);
+  r.pedido = item.id;
+  if (visor.fallo) { ponerEstado(cat, 'sin-visor'); return; }
+  if (r.cargado === item.id && r.viewer.getAttribute('src') === item.modelo) { ponerEstado(cat, 'listo'); return; }
+  if (r.fallido === item.id) { ponerEstado(cat, 'error'); return; }
+  ponerEstado(cat, 'cargando');
+  r.cargaBarra.style.width = '0%';
+  existeModelo(item.modelo).then(function (existe) {
+    if (r.pedido !== item.id) return;
+    if (existe === false) { ponerEstado(cat, 'sin-modelo'); return; }
+    if (existe === null) { ponerEstado(cat, location.protocol === 'file:' ? 'sin-servidor' : navigator.onLine === false ? 'sin-red' : 'error'); return; }
+    if (!visor.listo) return; // se carga cuando el visor esté listo
+    r.cargado = null;
+    r.viewer.setAttribute('src', item.modelo);
+  });
+}
+
+function alCargarModelo(cat) {
+  var r = REF[cat]; var v = r.viewer; var item = itemActual(cat);
+  if (v.getAttribute('src') !== item.modelo) return;
+  // Ajusta la escala para que en la realidad aumentada aparezca del tamaño real del objeto.
+  v.scale = '1 1 1';
+  Promise.resolve(v.updateComplete).then(function () {
+    var d = v.getDimensions();
+    var mayor = Math.max(d.x, d.y, d.z);
+    if (mayor > 0 && item.tam) {
+      var s = Number((item.tam / mayor).toPrecision(4));
+      v.scale = s + ' ' + s + ' ' + s;
+    }
+    return v.updateComplete;
+  }).then(function () {
+    return v.updateFraming ? v.updateFraming() : null;
+  }).catch(function () { /* si falla el ajuste, se muestra con su escala original */ }).then(function () {
+    if (v.getAttribute('src') !== itemActual(cat).modelo) return;
+    v.cameraOrbit = ORBITA;
+    if (v.jumpCameraToGoal) v.jumpCameraToGoal();
+    r.cargado = item.id;
+    ponerEstado(cat, 'listo');
+  });
+}
+
+var MENSAJES = {
+  cargando: 'Cargando el modelo 3D…',
+  'sin-modelo': 'Este elemento todavía no tiene modelo 3D. Observa el dibujo.',
+  'sin-red': 'No hay internet y este modelo no está guardado en el dispositivo. Observa el dibujo.',
+  'sin-visor': 'Este navegador no puede mostrar modelos 3D. Observa el dibujo o abre la app en Chrome o Safari actualizado.',
+  'sin-servidor': 'Los modelos 3D no cargan al abrir el archivo directamente. Publica la app (por ejemplo en GitHub Pages) o ábrela desde un servidor.',
+  error: 'No se pudo abrir el modelo 3D. Observa el dibujo.'
+};
+function ponerEstado(cat, est) {
+  var r = REF[cat];
+  r.escenario.dataset.estado = est;
+  r.estadoTxt.textContent = MENSAJES[est] || '';
+  var listo = est === 'listo';
+  if (listo) r.viewer.removeAttribute('inert'); else r.viewer.setAttribute('inert', '');
+  [r.btnGirar, r.btnCentrar, r.btnPantalla].forEach(function (b) { b.setAttribute('aria-disabled', String(!listo)); });
+  actualizarAR(cat);
+}
+
+function esMovil() { return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
+
+function actualizarAR(cat) {
+  var r = REF[cat]; if (!r || !r.escenario) return;
+  var item = itemActual(cat);
+  var est = r.escenario.dataset.estado;
+  var puede = est === 'listo' && !!r.viewer.canActivateAR;
+  r.btnAR.setAttribute('aria-disabled', String(!puede));
+  var nota;
+  if (est === 'cargando') nota = 'Espera a que cargue el modelo 3D.';
+  else if (est !== 'listo') nota = 'Sin modelo 3D no se puede usar la realidad aumentada con este elemento.';
+  else if (puede) nota = 'Apunta la cámara al piso o a una mesa y mueve el celular despacio. Tamaño real: ' + item.medida + '.';
+  else if (!window.isSecureContext) nota = 'La realidad aumentada necesita abrir la app con https://, por ejemplo desde GitHub Pages. Mientras tanto, gira el modelo en 3D.';
+  else if (esMovil()) nota = 'Este celular o navegador no tiene realidad aumentada. Puedes girar el modelo en 3D con el dedo.';
+  else nota = 'La realidad aumentada funciona en celulares y tabletas. En el computador, gira el modelo en 3D con el ratón.';
+  r.notaAR.textContent = nota;
+}
+
+function abrirAR(cat) {
+  var r = REF[cat];
+  if (r.btnAR.getAttribute('aria-disabled') === 'true') { aviso(r.notaAR.textContent); return; }
+  try {
+    var p = r.viewer.activateAR();
+    if (p && p.catch) p.catch(function () { aviso('No se pudo abrir la realidad aumentada. Revisa que el celular tenga “Servicios de Google Play para RA” o usa la vista 3D.', 6500); });
+  } catch (e) {
+    aviso('No se pudo abrir la realidad aumentada en este equipo. Puedes seguir explorando en 3D.', 6500);
+  }
+}
+
+function alternarGiro(cat) {
+  var r = REF[cat];
+  if (r.btnGirar.getAttribute('aria-disabled') === 'true') return;
+  estado.girar = !estado.girar; guardar();
+  ['naturales', 'tecnologicos'].forEach(function (c) {
+    var x = REF[c]; if (!x) return;
+    x.viewer.autoRotate = estado.girar;
+    x.btnGirar.setAttribute('aria-pressed', String(estado.girar));
+  });
+}
+function centrar(cat) {
+  var r = REF[cat]; var v = r.viewer;
+  if (r.btnCentrar.getAttribute('aria-disabled') === 'true') return;
+  v.cameraOrbit = ORBITA; v.cameraTarget = 'auto auto auto'; v.fieldOfView = 'auto';
+  if (v.resetTurntableRotation) v.resetTurntableRotation(0);
+  if (v.jumpCameraToGoal) v.jumpCameraToGoal();
+}
+function pantallaCompleta(cat) {
+  var r = REF[cat];
+  if (r.btnPantalla.getAttribute('aria-disabled') === 'true') return;
+  var actual = document.fullscreenElement || document.webkitFullscreenElement;
+  if (actual) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+  var f = r.escenario.requestFullscreen || r.escenario.webkitRequestFullscreen;
+  if (f) { var p = f.call(r.escenario); if (p && p.catch) p.catch(function () { aviso('No se pudo usar la pantalla completa.'); }); }
+}
+function actualizarPantalla(cat) {
+  var r = REF[cat]; if (!r) return;
+  var activo = (document.fullscreenElement || document.webkitFullscreenElement) === r.escenario;
+  r.btnPantalla.querySelector('span:last-child').textContent = activo ? 'Salir de pantalla completa' : 'Pantalla completa';
+}
+
+/* =========================================================
+   6. MI ENTORNO: materiales, artefactos y reto
+   ========================================================= */
+var refEntorno = {};
+function construirEntorno() {
+  var sec = $('#v-entorno');
+  sec.appendChild(el('div', null,
+    el('div', { class: 'ex-cab' }, el('h2', { id: 't-entorno', text: 'Objetos tecnológicos de mi entorno' })),
+    el('div', { class: 'ex-def' }, svgEl(ilus('licuadora')), el('p', { text: ENTORNO.definicion }))));
+
+  var pestanas = [
+    { k: 'materiales', t: 'Materiales' },
+    { k: 'artefactos', t: 'Artefactos' },
+    { k: 'reto', t: 'Reto' }
+  ];
+  var lista = el('div', { class: 'pestanas', role: 'tablist', 'aria-label': 'Partes de la sección' });
+  var paneles = {};
+  var botones = {};
+  pestanas.forEach(function (p) {
+    botones[p.k] = el('button', { role: 'tab', type: 'button', id: 'tab-' + p.k, 'aria-controls': 'panel-' + p.k, text: p.t, onclick: function () { elegirPestana(p.k, true); } });
+    lista.appendChild(botones[p.k]);
+  });
+  lista.addEventListener('keydown', function (e) {
+    var orden = pestanas.map(function (p) { return p.k; });
+    var i = orden.indexOf(estado.pestana);
+    if (e.key === 'ArrowRight') { e.preventDefault(); elegirPestana(orden[(i + 1) % orden.length], true); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); elegirPestana(orden[(i + orden.length - 1) % orden.length], true); }
+  });
+  sec.appendChild(lista);
+
+  // Materiales
+  paneles.materiales = el('div', { role: 'tabpanel', id: 'panel-materiales', 'aria-labelledby': 'tab-materiales' },
+    el('p', { class: 'panel-intro', text: 'Los objetos de la casa están hechos de materiales. Cada material viene de un producto natural y se elige por sus propiedades: cómo se comporta con el calor, el agua, la luz o los golpes.' }),
+    el('div', { class: 'tarjetas' }, ENTORNO.materiales.map(function (m) {
+      return tarjetaEntorno(m, ENTORNO.pregMateriales);
+    })));
+  // Artefactos
+  paneles.artefactos = el('div', { role: 'tabpanel', id: 'panel-artefactos', 'aria-labelledby': 'tab-artefactos' },
+    el('p', { class: 'panel-intro', text: 'Estos artefactos de uso doméstico son objetos tecnológicos. Mira qué función cumplen, qué energía usan y por qué cada parte está hecha de un material distinto.' }),
+    el('div', { class: 'tarjetas' }, ENTORNO.artefactos.map(function (a) {
+      return tarjetaEntorno(a, ENTORNO.pregArtefactos);
+    })));
+  // Reto
+  refEntorno.cuentaReto = el('p', { class: 'reto-cuenta', role: 'status' });
+  refEntorno.retoLista = el('div', { class: 'tarjetas' });
+  paneles.reto = el('div', { role: 'tabpanel', id: 'panel-reto', 'aria-labelledby': 'tab-reto' },
+    el('p', { class: 'panel-intro', text: '¿Qué material elegirías? Piensa en las propiedades de cada uno y toca tu respuesta.' }),
+    el('div', { class: 'fila-btn', style: 'justify-content:space-between;margin-bottom:14px' }, refEntorno.cuentaReto,
+      el('button', { class: 'btn btn-suave', type: 'button', onclick: function () { estado.reto = {}; guardar(); pintarReto(); } }, svgEl(icono('reiniciar')), 'Volver a intentar')),
+    refEntorno.retoLista,
+    el('div', { class: 'fila-btn', style: 'margin-top:20px' }, el('a', { class: 'btn btn-color', href: '#quiz', style: '--c:var(--uva)' }, 'Ir al quiz final', svgEl(icono('der')))));
+
+  Object.keys(paneles).forEach(function (k) { sec.appendChild(paneles[k]); });
+  refEntorno.paneles = paneles; refEntorno.botones = botones;
+  pintarReto();
+  elegirPestana(estado.pestana || 'materiales', false);
+}
+
+function tarjetaEntorno(dato, preguntas) {
+  return el('article', { class: 'tarjeta' },
+    el('div', { class: 'tarjeta-cab' }, svgEl(ilus(dato.ilus)), el('div', null, el('h3', { text: dato.nombre }), el('p', { text: dato.resumen }))),
+    crearPistas(dato.id, preguntas, dato, actualizarInicio));
+}
+
+function elegirPestana(k, foco) {
+  estado.pestana = k; guardar();
+  Object.keys(refEntorno.paneles).forEach(function (p) {
+    var sel = p === k;
+    refEntorno.paneles[p].hidden = !sel;
+    refEntorno.botones[p].setAttribute('aria-selected', String(sel));
+    refEntorno.botones[p].tabIndex = sel ? 0 : -1;
+  });
+  if (foco) refEntorno.botones[k].focus();
+}
+
+function pintarReto() {
+  var cont = refEntorno.retoLista; cont.textContent = '';
+  var aciertos = 0, respondidas = 0;
+  ENTORNO.reto.forEach(function (r, i) {
+    var elegida = estado.reto[i];
+    var respondida = elegida !== undefined;
+    if (respondida) { respondidas++; if (elegida === 0) aciertos++; }
+    var opciones = el('div', { class: 'opciones' });
+    // Orden fijo pero distinto del de la lista para que la correcta no sea siempre la primera.
+    var orden = [[1, 0, 2], [0, 2, 1], [2, 1, 0], [1, 2, 0], [0, 1, 2], [2, 0, 1]][i % 6];
+    orden.forEach(function (o) {
+      var cls = 'opcion';
+      var marca = null;
+      if (respondida && o === 0) { cls += ' correcta'; marca = icono('check'); }
+      else if (respondida && o === elegida) { cls += ' incorrecta'; marca = icono('x'); }
+      opciones.appendChild(el('button', { class: cls, type: 'button', disabled: respondida, onclick: function () {
+        estado.reto[i] = o; guardar(); pintarReto(); actualizarInicio();
+        var b = $('#reto-retro-' + i); if (b) b.focus();
+      } }, r.op[o], marca ? svgEl(marca) : null));
+    });
+    var retro = null;
+    if (respondida) {
+      var bien = elegida === 0;
+      retro = el('div', { class: 'retro ' + (bien ? 'bien' : 'mal'), id: 'reto-retro-' + i, tabindex: '-1' },
+        el('b', { text: bien ? '¡Muy bien!' : 'Mejor: ' + r.op[0].toLowerCase() }), r.exp);
+    }
+    cont.appendChild(el('article', { class: 'reto' }, el('h3', { text: (i + 1) + '. ' + r.q }), opciones, retro));
+  });
+  refEntorno.cuentaReto.textContent = respondidas ? 'Aciertos: ' + aciertos + ' de ' + ENTORNO.reto.length : 'Responde las ' + ENTORNO.reto.length + ' situaciones.';
+}
+
+/* =========================================================
+   7. QUIZ FINAL E IMPRESIÓN
+   ========================================================= */
+function mezclar(n) {
+  var a = []; for (var i = 0; i < n; i++) a.push(i);
+  for (var j = a.length - 1; j > 0; j--) { var k = Math.floor(Math.random() * (j + 1)); var t = a[j]; a[j] = a[k]; a[k] = t; }
+  return a;
+}
+function caja() { return $('#quiz-caja'); }
+function pintarQuiz() {
+  var q = estado.quiz;
+  if (!q || q.fase === 'inicio') return quizInicio();
+  if (q.fase === 'pregunta') return quizPregunta();
+  return quizResultado();
+}
+
+function quizInicio() {
+  var c = caja(); c.textContent = '';
+  var previo = estado.quiz && estado.quiz.ultimo;
+  var nombre = el('input', { id: 'q-nombre', type: 'text', autocomplete: 'name', maxlength: '60', required: true, value: (estado.quiz && estado.quiz.nombre) || '' });
+  var curso = el('input', { id: 'q-curso', type: 'text', maxlength: '20', placeholder: 'Ej.: 4-3', value: (estado.quiz && estado.quiz.curso) || '' });
+  var error = el('p', { class: 'campo-error', role: 'alert' });
+  var form = el('form', { novalidate: true, onsubmit: function (e) {
+    e.preventDefault();
+    var n = nombre.value.trim();
+    if (!n) { error.textContent = 'Escribe tu nombre para empezar.'; nombre.focus(); return; }
+    estado.quiz = {
+      fase: 'pregunta', nombre: n, curso: curso.value.trim(), i: 0,
+      orden: QUIZ.map(function (p) { return mezclar(p.op.length); }),
+      resp: QUIZ.map(function () { return null; }), autoeval: null,
+      inicio: new Date().toISOString(), ultimo: previo || null
+    };
+    guardar(); quizPregunta(true);
+  } },
+    el('label', { class: 'campo', for: 'q-nombre' }, el('span', { text: 'Nombre y apellido' }), nombre),
+    error,
+    el('label', { class: 'campo', for: 'q-curso' }, el('span', { text: 'Curso' }), curso),
+    el('button', { class: 'btn btn-color', type: 'submit' }, 'Empezar el quiz', svgEl(icono('der'))));
+  c.appendChild(el('h2', { id: 't-quiz', text: 'Quiz final' }));
+  c.appendChild(el('p', { text: QUIZ.length + ' preguntas sobre productos naturales, productos tecnológicos y objetos de tu entorno. Al final puedes imprimir tus resultados o guardarlos como PDF.' }));
+  if (previo) {
+    c.appendChild(el('p', { class: 'texto-suave' }, 'Último resultado en este dispositivo: ' + previo.nombre + ', ' + previo.aciertos + ' de ' + previo.total + '. ',
+      el('button', { class: 'btn btn-suave', type: 'button', onclick: function () { estado.quiz = Object.assign({}, previo.copia, { ultimo: previo }); guardar(); quizResultado(true); } }, 'Ver esos resultados')));
+  }
+  c.appendChild(form);
+}
+
+function quizPregunta(foco) {
+  var q = estado.quiz; var c = caja(); c.textContent = '';
+  var p = QUIZ[q.i];
+  var elegida = q.resp[q.i];
+  var respondida = elegida !== null;
+  var titulo = el('h2', { id: 't-quiz', class: 'solo-lector', text: 'Quiz final, pregunta ' + (q.i + 1) });
+  var barra = el('span'); barra.style.width = Math.round(q.i / QUIZ.length * 100) + '%';
+  c.appendChild(titulo);
+  c.appendChild(el('div', { class: 'q-cab' }, el('span', { text: 'Pregunta ' + (q.i + 1) + ' de ' + QUIZ.length }), el('span', { class: 'texto-suave', text: q.nombre })));
+  c.appendChild(el('div', { class: 'carga', 'aria-hidden': 'true' }, barra));
+  if (p.ilus) c.appendChild(el('div', { class: 'q-dibujo', svg: ilus(p.ilus), 'aria-hidden': 'true' }));
+  var texto = el('p', { class: 'q-texto', id: 'q-texto', tabindex: '-1', text: p.q });
+  c.appendChild(texto);
+  var ops = el('div', { class: 'q-opciones', role: 'group', 'aria-labelledby': 'q-texto' });
+  q.orden[q.i].forEach(function (o, pos) {
+    var cls = 'q-opcion'; var marca = null;
+    if (respondida && o === 0) { cls += ' correcta'; marca = icono('check'); }
+    else if (respondida && o === elegida) { cls += ' incorrecta'; marca = icono('x'); }
+    ops.appendChild(el('button', { class: cls, type: 'button', disabled: respondida, onclick: function () {
+      q.resp[q.i] = o; guardar(); quizPregunta(false);
+      var r = $('#q-retro'); if (r) r.focus();
+    } }, el('span', { class: 'letra', 'aria-hidden': 'true', text: 'ABCD'[pos] }), el('span', { text: p.op[o] }), marca ? svgEl(marca, 'marca-r') : null));
+  });
+  c.appendChild(ops);
+  if (respondida) {
+    var bien = elegida === 0;
+    var ultima = q.i === QUIZ.length - 1;
+    c.appendChild(el('div', { class: 'retro ' + (bien ? 'bien' : 'mal'), id: 'q-retro', tabindex: '-1' },
+      el('b', { text: bien ? '¡Correcto!' : 'No es correcta. La respuesta es: ' + p.op[0] }), p.exp));
+    c.appendChild(el('div', { class: 'fila-btn', style: 'margin-top:16px' },
+      el('button', { class: 'btn btn-color', type: 'button', onclick: function () {
+        if (ultima) { q.fase = 'resultado'; q.fin = new Date().toISOString(); guardarUltimo(); guardar(); quizResultado(true); }
+        else { q.i++; guardar(); quizPregunta(true); }
+      } }, ultima ? 'Ver mis resultados' : 'Siguiente pregunta', svgEl(icono('der')))));
+  }
+  if (foco) texto.focus();
+}
+
+function aciertosQuiz(q) { return q.resp.filter(function (r) { return r === 0; }).length; }
+function guardarUltimo() {
+  var q = estado.quiz;
+  var copia = JSON.parse(JSON.stringify(q)); delete copia.ultimo;
+  q.ultimo = { nombre: q.nombre, aciertos: aciertosQuiz(q), total: QUIZ.length, copia: copia };
+}
+
+function quizResultado(foco) {
+  var q = estado.quiz; var c = caja(); c.textContent = '';
+  var a = aciertosQuiz(q);
+  var mensaje = a >= 10 ? '¡Excelente trabajo, explorador!' : a >= 7 ? '¡Muy bien! Repasa las preguntas que fallaste.' : 'Vuelve a explorar los elementos y repasa las respuestas.';
+  var titulo = el('h2', { id: 't-quiz', tabindex: '-1', text: 'Tus resultados' });
+  c.appendChild(titulo);
+  c.appendChild(el('p', { class: 'texto-suave', text: q.nombre + (q.curso ? ', curso ' + q.curso : '') }));
+  c.appendChild(el('p', { class: 'puntaje', text: a + ' de ' + QUIZ.length }));
+  c.appendChild(el('p', { style: 'font-weight:800', text: mensaje }));
+
+  c.appendChild(el('h3', { style: 'margin-top:18px', text: '¿Cómo me fue?' }));
+  var auto = el('div', { class: 'autoeval', role: 'group', 'aria-label': '¿Cómo me fue?' });
+  AUTOEVAL.forEach(function (op) {
+    auto.appendChild(el('button', { type: 'button', 'aria-pressed': String(q.autoeval === op.k), onclick: function () {
+      q.autoeval = op.k; if (q.ultimo) q.ultimo.copia.autoeval = op.k; guardar();
+      $$('button', auto).forEach(function (b, i) { b.setAttribute('aria-pressed', String(AUTOEVAL[i].k === op.k)); });
+    } }, svgEl(cara(op.cara)), op.t));
+  });
+  c.appendChild(auto);
+
+  c.appendChild(el('div', { class: 'fila-btn', style: 'margin:18px 0' },
+    el('button', { class: 'btn btn-color', type: 'button', onclick: imprimir }, svgEl(icono('imprimir')), 'Imprimir mis resultados'),
+    el('button', { class: 'btn', type: 'button', onclick: function () {
+      var ultimo = q.ultimo; estado.quiz = { fase: 'inicio', nombre: q.nombre, curso: q.curso, ultimo: ultimo }; guardar(); quizInicio();
+    } }, svgEl(icono('reiniciar')), 'Intentar de nuevo')));
+  c.appendChild(el('p', { class: 'texto-suave', text: 'En el celular, al imprimir puedes elegir “Guardar como PDF” y enviarlo a tu docente.' }));
+
+  c.appendChild(el('h3', { style: 'margin-top:18px', text: 'Revisa tus respuestas' }));
+  var lista = el('ol', { class: 'revision' });
+  QUIZ.forEach(function (p, i) {
+    var r = q.resp[i]; var ok = r === 0;
+    lista.appendChild(el('li', { class: ok ? 'ok' : 'no' },
+      svgEl(icono(ok ? 'check' : 'x')),
+      el('span', { style: 'font-weight:800', text: (i + 1) + '. ' + p.q }),
+      el('small', { text: 'Tu respuesta: ' + (r === null ? 'sin responder' : p.op[r]) }),
+      ok ? null : el('small', { text: 'Respuesta correcta: ' + p.op[0] })));
+  });
+  c.appendChild(lista);
+  if (foco) titulo.focus();
+}
+
+function fechaLarga(iso) {
+  var d = iso ? new Date(iso) : new Date();
+  try { return d.toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' }); } catch (e) { return d.toDateString(); }
+}
+function imprimir() {
+  var q = estado.quiz; var h = $('#hoja-impresion'); h.textContent = '';
+  var a = aciertosQuiz(q);
+  var auto = AUTOEVAL.filter(function (x) { return x.k === q.autoeval; })[0];
+  var explorados = ['naturales', 'tecnologicos'].reduce(function (s, cat) {
+    return s + DATOS[cat].items.filter(function (it) { return completo(cat, it); }).length;
+  }, 0);
+  h.appendChild(el('h1', { text: 'Exploradores tecnológicos: resultados del quiz final' }));
+  h.appendChild(el('p', { class: 'sub', text: 'Tecnología e Informática. Sesión 2: productos naturales, productos tecnológicos y objetos de mi entorno.' }));
+  h.appendChild(el('div', { class: 'datos' },
+    el('div', null, el('b', { text: 'Nombre: ' }), q.nombre),
+    el('div', null, el('b', { text: 'Curso: ' }), q.curso || '—'),
+    el('div', null, el('b', { text: 'Fecha: ' }), fechaLarga(q.fin)),
+    el('div', null, el('b', { text: 'Puntaje: ' }), a + ' de ' + QUIZ.length + ' respuestas correctas'),
+    el('div', null, el('b', { text: '¿Cómo me fue?: ' }), auto ? auto.t : 'Sin marcar'),
+    el('div', null, el('b', { text: 'Elementos explorados: ' }), explorados + ' de 14')));
+  var tabla = el('table', null,
+    el('thead', null, el('tr', null, el('th', { text: '#' }), el('th', { text: 'Pregunta' }), el('th', { text: 'Mi respuesta' }), el('th', { text: 'Respuesta correcta' }), el('th', { text: 'Resultado' }))),
+    el('tbody', null, QUIZ.map(function (p, i) {
+      var r = q.resp[i];
+      return el('tr', null, el('td', { text: String(i + 1) }), el('td', { text: p.q }), el('td', { text: r === null ? 'Sin responder' : p.op[r] }), el('td', { text: p.op[0] }), el('td', { text: r === 0 ? 'Correcta' : 'Incorrecta' }));
+    })));
+  h.appendChild(tabla);
+  h.appendChild(el('div', { class: 'firma' }, el('div', { text: 'Firma del estudiante' }), el('div', { text: 'Revisión del docente' })));
+  document.body.classList.add('imprimiendo');
+  setTimeout(function () { window.print(); }, 60);
+}
+window.addEventListener('afterprint', function () { document.body.classList.remove('imprimiendo'); });
+
+/* =========================================================
+   8. INICIO, RUTA Y USO SIN INTERNET
+   ========================================================= */
+function construirInicio() {
+  $('#hero-dibujo').innerHTML =
+    '<svg viewBox="0 0 360 280" xmlns="http://www.w3.org/2000/svg" focusable="false">' +
+    '<circle cx="196" cy="140" r="126" fill="#D3EAF7"/>' +
+    '<g transform="rotate(14 292 92)">' + ilusInterna('celular', 228, 22, 128) + '</g>' +
+    '<path d="M36 252c0-42 30-64 74-64 0 42-30 64-74 64Z" fill="#6CC17E" stroke="#17375E" stroke-width="5" stroke-linejoin="round"/><path d="m36 252 50-46" stroke="#17375E" stroke-width="4" stroke-linecap="round"/>' +
+    '<path d="m318 214 5 11 11 5-11 5-5 11-5-11-11-5 11-5Z" fill="#FFC93C" stroke="#17375E" stroke-width="3" stroke-linejoin="round"/>' +
+    '<path d="m58 54 4 8 8 4-8 4-4 8-4-8-8-4 8-4Z" fill="#FFC93C" stroke="#17375E" stroke-width="3" stroke-linejoin="round"/>' +
+    '<g class="lupa">' +
+    '<path d="m214 194 52 52" stroke="#17375E" stroke-width="24" stroke-linecap="round"/><path d="m214 194 52 52" stroke="#F28C28" stroke-width="13" stroke-linecap="round"/>' +
+    '<circle cx="150" cy="130" r="88" fill="#fff" stroke="#17375E" stroke-width="10"/>' +
+    ilusInterna('banano', 70, 50, 160) +
+    '<path d="M98 72a72 72 0 0 1 48-18" stroke="#D3EAF7" stroke-width="8" fill="none" stroke-linecap="round"/>' +
+    '</g></svg>';
+
+  var defs = $('#defs');
+  [
+    { cat: 'naturales', t: 'Producto natural', d: 'Es un elemento que obtenemos directamente de la naturaleza, como plantas, animales, agua o minerales.', i: 'mazorca' },
+    { cat: 'tecnologicos', t: 'Producto tecnológico', d: 'Es un bien que se crea con la ayuda de la tecnología para satisfacer una necesidad.', i: 'computador' },
+    { cat: 'entorno', t: 'Objeto tecnológico', d: 'Es un objeto que tiene una función específica y está diseñado con materiales y herramientas tecnológicas.', i: 'licuadora' }
+  ].forEach(function (x) {
+    defs.appendChild(el('article', { class: 'def', 'data-cat': x.cat }, svgEl(ilus(x.i)), el('h3', { text: x.t }), el('p', { text: x.d })));
+  });
+
+  var ruta = $('#ruta');
+  [
+    { v: 'naturales', t: 'Productos naturales', d: '7 elementos que nos da la naturaleza.' },
+    { v: 'tecnologicos', t: 'Productos tecnológicos', d: '7 elementos creados por las personas.' },
+    { v: 'entorno', t: 'Objetos tecnológicos de mi entorno', d: 'Materiales y artefactos de la casa, y sus propiedades.' },
+    { v: 'quiz', t: 'Quiz final', d: 'Demuestra lo que aprendiste e imprime tus resultados.' }
+  ].forEach(function (x, i) {
+    ruta.appendChild(el('li', null, el('a', { href: '#' + x.v, 'data-cat': x.v },
+      el('span', { class: 'ruta-num', 'aria-hidden': 'true', text: String(i + 1) }),
+      el('span', { class: 'ruta-t', text: x.t }),
+      el('span', { class: 'ruta-d', text: x.d }),
+      el('span', { class: 'ruta-p', id: 'ruta-p-' + x.v }))));
+  });
+}
+
+function actualizarInicio() {
+  ['naturales', 'tecnologicos'].forEach(function (cat) {
+    var n = DATOS[cat].items.filter(function (it) { return completo(cat, it); }).length;
+    var p = $('#ruta-p-' + cat); if (p) p.textContent = n + ' de ' + DATOS[cat].items.length + ' explorados';
+  });
+  var tarjetas = ENTORNO.materiales.concat(ENTORNO.artefactos);
+  var hechas = tarjetas.filter(function (t) { return vistasDe(t.id).length >= 3; }).length;
+  var retoHechas = Object.keys(estado.reto).length;
+  var pe = $('#ruta-p-entorno'); if (pe) pe.textContent = hechas + ' de ' + tarjetas.length + ' tarjetas' + (retoHechas ? ', reto ' + retoHechas + ' de ' + ENTORNO.reto.length : '');
+  var pq = $('#ruta-p-quiz');
+  if (pq) {
+    var u = estado.quiz && estado.quiz.ultimo;
+    pq.textContent = u ? 'Último: ' + u.aciertos + ' de ' + u.total : 'Sin presentar';
+  }
+}
+
+var MODELOS = DATOS.naturales.items.concat(DATOS.tecnologicos.items).map(function (it) { return it.modelo; });
+var CACHE_MODELOS = 'exploradores-modelos';
+
+function prepararOffline() {
+  var btn = $('#btn-offline');
+  var texto = $('#offline-estado');
+  if (!('serviceWorker' in navigator) || !('caches' in window)) {
+    btn.hidden = true;
+    $('#offline-texto').textContent = 'Para guardar la app en este dispositivo, ábrela desde su dirección segura (https://), por ejemplo en GitHub Pages, con Chrome o Safari.';
+    return;
+  }
+  contarGuardados().then(function (n) {
+    if (n > 0) texto.textContent = 'Modelos 3D guardados en este dispositivo: ' + n + ' de ' + MODELOS.length + '.';
+  });
+  btn.addEventListener('click', guardarTodo);
+}
+function contarGuardados() {
+  return caches.open(CACHE_MODELOS).then(function (c) {
+    return Promise.all(MODELOS.map(function (u) { return c.match(u); }));
+  }).then(function (r) { return r.filter(Boolean).length; }).catch(function () { return 0; });
+}
+function guardarTodo() {
+  var btn = $('#btn-offline'); var texto = $('#offline-estado'); var carga = $('#offline-carga'); var barra = carga.firstElementChild;
+  if (navigator.onLine === false) { texto.textContent = 'Necesitas internet para guardar la app. Conéctate e inténtalo de nuevo.'; return; }
+  btn.disabled = true; carga.hidden = false; barra.style.width = '0%';
+  var guardados = 0, faltan = 0, fallos = 0, hechos = 0;
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {});
+  var listaSW = navigator.serviceWorker.ready.then(function (reg) { return reg; });
+  var limite = new Promise(function (res) { setTimeout(res, 8000); });
+  Promise.race([listaSW, limite]).then(function () {
+    return caches.open(CACHE_MODELOS);
+  }).then(function (cache) {
+    // Uno por uno para no saturar una conexión lenta.
+    return MODELOS.reduce(function (cadena, url) {
+      return cadena.then(function () {
+        texto.textContent = 'Guardando ' + (hechos + 1) + ' de ' + MODELOS.length + '…';
+        return fetch(url, { cache: 'no-cache' }).then(function (res) {
+          if (res.ok) { guardados++; EXISTE[url] = true; return cache.put(url, res); }
+          if (res.status === 404) { faltan++; EXISTE[url] = false; } else fallos++;
+        }).catch(function () { fallos++; }).then(function () {
+          hechos++; barra.style.width = Math.round(hechos / MODELOS.length * 100) + '%';
+        });
+      });
+    }, Promise.resolve());
+  }).then(function () {
+    var partes = [guardados === 1 ? 'Listo. Se guardaron la app y 1 modelo 3D en este dispositivo.' : 'Listo. Se guardaron la app y ' + guardados + ' modelos 3D en este dispositivo.'];
+    if (faltan) partes.push(faltan === 1 ? '1 modelo todavía no está publicado en la carpeta modelos.' : faltan + ' modelos todavía no están publicados en la carpeta modelos.');
+    if (fallos) partes.push((fallos === 1 ? '1 modelo no se pudo descargar' : fallos + ' modelos no se pudieron descargar') + ': intenta de nuevo con mejor señal.');
+    if (!navigator.serviceWorker.controller) partes.push('Recarga la página una vez para terminar de activar el modo sin internet.');
+    texto.textContent = partes.join(' ');
+  }).catch(function () {
+    texto.textContent = 'No se pudo guardar en este dispositivo. Revisa que haya espacio libre e inténtalo de nuevo.';
+  }).then(function () { btn.disabled = false; });
+}
+
+function revisarModelos() {
+  var lista = $('#estado-modelos'); lista.textContent = '';
+  var todos = DATOS.naturales.items.concat(DATOS.tecnologicos.items);
+  todos.forEach(function (it) {
+    var li = el('li', null, el('span', { text: 'Revisando…' }), ' ', el('code', { text: it.modelo }));
+    lista.appendChild(li);
+    EXISTE[it.modelo] = undefined;
+    existeModelo(it.modelo).then(function (ok) {
+      li.className = ok ? 'ok' : 'no';
+      li.firstChild.replaceWith(svgEl(icono(ok ? 'check' : 'x')));
+      li.appendChild(document.createTextNode(ok ? ' ' + it.nombre + ': publicado' : ok === null ? ' ' + it.nombre + ': no se pudo revisar (¿sin internet?)' : ' ' + it.nombre + ': falta el archivo'));
+    });
+  });
+}
+
+function pintarCreditos() {
+  var cont = $('#creditos'); cont.textContent = '';
+  var todos = DATOS.naturales.items.concat(DATOS.tecnologicos.items).filter(function (it) { return it.credito; });
+  if (!todos.length) { cont.appendChild(el('p', { text: 'Los créditos de cada modelo 3D aparecen aquí y debajo del visor cuando se agregan los modelos.' })); return; }
+  cont.appendChild(el('ul', null, todos.map(function (it) { return el('li', null, el('b', { text: it.nombre + ': ' }), it.credito); })));
+}
+
+/* =========================================================
+   9. AYUDA, NAVEGACIÓN Y ARRANQUE
+   ========================================================= */
+function abrirAyuda() {
+  var d = $('#ayuda');
+  if (typeof d.showModal === 'function') d.showModal();
+  else { d.classList.add('sin-soporte'); d.setAttribute('open', ''); }
+}
+function cerrarAyuda() {
+  var d = $('#ayuda');
+  if (typeof d.close === 'function') d.close(); else d.removeAttribute('open');
+}
+
+var VISTAS = ['inicio', 'naturales', 'tecnologicos', 'entorno', 'quiz'];
+var TITULOS = { inicio: 'Inicio', naturales: 'Productos naturales', tecnologicos: 'Productos tecnológicos', entorno: 'Objetos de mi entorno', quiz: 'Quiz final' };
+var construidas = {};
+function ruta() { var v = location.hash.replace('#', ''); return VISTAS.indexOf(v) !== -1 ? v : 'inicio'; }
+function mostrarVista(v, foco) {
+  VISTAS.forEach(function (x) { $('#v-' + x).hidden = x !== v; });
+  $$('.menu a').forEach(function (a) { if (a.dataset.vista === v) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  document.title = TITULOS[v] + ' | Exploradores tecnológicos';
+  if (v === 'naturales' || v === 'tecnologicos') {
+    if (!construidas[v]) { construirExplorar(v); construidas[v] = true; }
+    mostrarItem(v, estado.idx[v] || 0);
+  }
+  if (v === 'entorno' && !construidas.entorno) { construirEntorno(); construidas.entorno = true; }
+  if (v === 'quiz') pintarQuiz();
+  if (v === 'inicio') actualizarInicio();
+  window.scrollTo(0, 0);
+  if (foco) {
+    var t = $('#t-' + v);
+    if (t) { t.setAttribute('tabindex', '-1'); t.focus({ preventScroll: true }); }
+  }
+}
+
+function iniciar() {
+  $$('[data-icono]').forEach(function (s) { s.innerHTML = icono(s.dataset.icono); s.setAttribute('aria-hidden', 'true'); });
+  $('#marca-icono').innerHTML = '<svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><circle cx="20" cy="20" r="14" fill="#FFC93C" stroke="#17375E" stroke-width="3.5"/><path d="m30 30 12 12" stroke="#17375E" stroke-width="6" stroke-linecap="round"/><path d="M14 24c0-7 4-10 10-10 0 7-4 10-10 10Z" fill="#43A85A" stroke="#17375E" stroke-width="2.2" stroke-linejoin="round"/></svg>';
+  construirInicio();
+  pintarCreditos();
+  prepararOffline();
+  $$('[data-abrir-ayuda]').forEach(function (b) { b.addEventListener('click', abrirAyuda); });
+  $('#cerrar-ayuda').addEventListener('click', cerrarAyuda);
+  $('#ayuda').addEventListener('click', function (e) { if (e.target === this) cerrarAyuda(); });
+  $('#btn-revisar').addEventListener('click', revisarModelos);
+  $('#btn-reiniciar').addEventListener('click', function () {
+    if (!window.confirm('¿Borrar tu progreso y tus respuestas del quiz en este dispositivo?')) return;
+    try { localStorage.removeItem(CLAVE); } catch (e) {}
+    location.hash = 'inicio'; location.reload();
+  });
+
+  function red() { document.body.classList.toggle('sin-red', navigator.onLine === false); }
+  window.addEventListener('online', red); window.addEventListener('offline', red); red();
+
+  window.addEventListener('hashchange', function () { mostrarVista(ruta(), true); });
+  mostrarVista(ruta(), false);
+
+  // Visor 3D: espera a que model-viewer esté listo (o avisa si el navegador no lo admite).
+  if (window.customElements && customElements.whenDefined) {
+    var limite = setTimeout(function () {
+      if (visor.listo) return;
+      visor.fallo = true;
+      ['naturales', 'tecnologicos'].forEach(function (c) { if (REF[c]) ponerEstado(c, 'sin-visor'); });
+    }, 20000);
+    customElements.whenDefined('model-viewer').then(function () {
+      clearTimeout(limite);
+      visor.listo = true; visor.fallo = false;
+      var v = ruta();
+      if (v === 'naturales' || v === 'tecnologicos') cargarModelo(v);
+    });
+  } else {
+    visor.fallo = true;
+  }
+
+  if ('serviceWorker' in navigator && window.isSecureContext) {
+    navigator.serviceWorker.register('sw.js').catch(function () { /* sin modo offline */ });
+  }
+}
+
+iniciar();
+})();
+</script>
+</body>
+</html>
